@@ -1,1 +1,11 @@
-C:\Users\bonni\Downloads\demo\demo\src\main\java\com\udea\demo\DemoApplication.java
+C:\Users\bonni\OneDrive\Documents\Proyectos GitHub\tracking-logistico-backend\src\main\java\com\udea\demo\config\SecurityConfig.java
+C:\Users\bonni\OneDrive\Documents\Proyectos GitHub\tracking-logistico-backend\src\main\java\com\udea\demo\DemoApplication.java
+C:\Users\bonni\OneDrive\Documents\Proyectos GitHub\tracking-logistico-backend\src\main\java\com\udea\demo\usuarios\application\dto\RegistroClienteRequestDTO.java
+C:\Users\bonni\OneDrive\Documents\Proyectos GitHub\tracking-logistico-backend\src\main\java\com\udea\demo\usuarios\application\dto\UsuarioResponseDTO.java
+C:\Users\bonni\OneDrive\Documents\Proyectos GitHub\tracking-logistico-backend\src\main\java\com\udea\demo\usuarios\application\service\UsuarioService.java
+C:\Users\bonni\OneDrive\Documents\Proyectos GitHub\tracking-logistico-backend\src\main\java\com\udea\demo\usuarios\domain\model\EstadoUsuario.java
+C:\Users\bonni\OneDrive\Documents\Proyectos GitHub\tracking-logistico-backend\src\main\java\com\udea\demo\usuarios\domain\model\Rol.java
+C:\Users\bonni\OneDrive\Documents\Proyectos GitHub\tracking-logistico-backend\src\main\java\com\udea\demo\usuarios\domain\model\Usuario.java
+C:\Users\bonni\OneDrive\Documents\Proyectos GitHub\tracking-logistico-backend\src\main\java\com\udea\demo\usuarios\infrastructure\controller\UsuarioController.java
+C:\Users\bonni\OneDrive\Documents\Proyectos GitHub\tracking-logistico-backend\src\main\java\com\udea\demo\usuarios\infrastructure\controller\UsuarioControllerAdvice.java
+C:\Users\bonni\OneDrive\Documents\Proyectos GitHub\tracking-logistico-backend\src\main\java\com\udea\demo\usuarios\infrastructure\persistence\UsuarioRepository.java

@@ -1,5 +1,6 @@
 package com.udea.demo.usuarios.infrastructure.controller;
 
+import com.udea.demo.usuarios.application.dto.ActualizarPerfilRequestDTO;
 import com.udea.demo.usuarios.application.dto.RegistroClienteRequestDTO;
 import com.udea.demo.usuarios.application.dto.UsuarioResponseDTO;
 import com.udea.demo.usuarios.application.service.UsuarioService;
@@ -22,5 +23,25 @@ public class UsuarioController {
     public ResponseEntity<UsuarioResponseDTO> registrarCliente(@Valid @RequestBody RegistroClienteRequestDTO dto) {
         UsuarioResponseDTO respuesta = usuarioService.registrarCliente(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
+    }
+
+    @GetMapping("/verificar")
+    public ResponseEntity<String> verificarCuenta(@RequestParam String token) {
+        usuarioService.verificarCuenta(token);
+        return ResponseEntity.ok("Cuenta verificada con éxito. Ya puedes iniciar sesión.");
+    }
+
+    @PutMapping("/{id}/perfil")
+    public ResponseEntity<UsuarioResponseDTO> actualizarPerfil(
+            @PathVariable Long id,
+            @Valid @RequestBody ActualizarPerfilRequestDTO dto) {
+        UsuarioResponseDTO respuesta = usuarioService.actualizarPerfil(id, dto);
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> desactivarCuenta(@PathVariable Long id) {
+        usuarioService.desactivarCuenta(id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -25,7 +25,13 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/usuarios/**", "/h2-console/**").permitAll()
+                .requestMatchers("/api/v1/usuarios/**",
+                                                "/api/v1/clientes/**", 
+                                                "/h2-console/**",
+                                                "/swagger-ui/**",
+                                                "/swagger-ui.html",
+                                                "/v3/api-docs/**")
+                .permitAll()
                 .anyRequest().authenticated()
             );
         return http.build();

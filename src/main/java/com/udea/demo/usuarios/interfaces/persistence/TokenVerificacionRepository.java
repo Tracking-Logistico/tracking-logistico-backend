@@ -1,4 +1,4 @@
-package com.udea.demo.usuarios.infrastructure.persistence;
+package com.udea.demo.usuarios.interfaces.persistence;
 
 import com.udea.demo.usuarios.domain.model.TokenVerificacion;
 import org.springframework.data.jpa.repository.JpaRepository;

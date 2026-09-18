@@ -14,12 +14,31 @@ import com.udea.demo.usuarios.domain.exception.PasswordDebilException;
 import com.udea.demo.usuarios.domain.exception.PasswordNoCoincideException;
 import com.udea.demo.usuarios.domain.exception.RolInternoInvalidoException;
 import com.udea.demo.usuarios.domain.exception.UsuarioNoEncontradoException;
+import com.udea.demo.usuarios.domain.exception.CredencialesInvalidasException;
+import com.udea.demo.usuarios.domain.exception.CuentaBloqueadaLoginException;
+import com.udea.demo.usuarios.domain.exception.SesionInvalidaException;
+import com.udea.demo.usuarios.domain.exception.TokenRestablecimientoInvalidoException;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
 public class UsuarioControllerAdvice {
+
+    @ExceptionHandler(CredencialesInvalidasException.class)
+    public ResponseEntity<Map<String, String>> manejarCredencialesInvalidas(CredencialesInvalidasException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CuentaBloqueadaLoginException.class)
+    public ResponseEntity<Map<String, String>> manejarCuentaBloqueada(CuentaBloqueadaLoginException ex) {
+        return ResponseEntity.status(HttpStatus.LOCKED).body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler({SesionInvalidaException.class, TokenRestablecimientoInvalidoException.class})
+    public ResponseEntity<Map<String, String>> manejarTokenInvalido(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", ex.getMessage()));
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> manejarIllegalArgument(IllegalArgumentException ex) {

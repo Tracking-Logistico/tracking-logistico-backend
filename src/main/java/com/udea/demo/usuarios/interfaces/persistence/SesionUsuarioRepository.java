@@ -1,0 +1,13 @@
+package com.udea.demo.usuarios.interfaces.persistence;
+
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.udea.demo.usuarios.domain.model.SesionUsuario;
+
+public interface SesionUsuarioRepository extends JpaRepository<SesionUsuario, Long> {
+    Optional<SesionUsuario> findByAccessTokenHash(String accessTokenHash);
+    Optional<SesionUsuario> findByRefreshTokenHash(String refreshTokenHash);
+    void deleteByUsuarioId(Long usuarioId);
+}

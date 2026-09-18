@@ -15,6 +15,7 @@ import com.udea.demo.rutas.domain.model.ParadaRuta;
 import com.udea.demo.rutas.domain.model.Ruta;
 import com.udea.demo.rutas.interfaces.persistence.ParadaRutaRepository;
 import com.udea.demo.rutas.interfaces.persistence.RutaRepository;
+import com.udea.demo.usuarios.interfaces.persistence.ConductorRepository;
 import com.udea.demo.rutas.interfaces.services.RutaServiceI;
 
 import org.springframework.stereotype.Service;
@@ -31,15 +32,18 @@ public class RutaService implements RutaServiceI {
     private final ParadaRutaRepository paradaRutaRepository;
     private final GestorRutaActiva gestorRutaActiva;
     private final PedidoServiceI pedidoServiceI;
+    private final ConductorRepository conductorRepository;
 
     public RutaService(RutaRepository rutaRepository,
                         ParadaRutaRepository paradaRutaRepository,
                         GestorRutaActiva gestorRutaActiva,
-                        PedidoServiceI pedidoServiceI) {
+                        PedidoServiceI pedidoServiceI,
+                        ConductorRepository conductorRepository) {
         this.rutaRepository = rutaRepository;
         this.paradaRutaRepository = paradaRutaRepository;
         this.gestorRutaActiva = gestorRutaActiva;
         this.pedidoServiceI = pedidoServiceI;
+        this.conductorRepository = conductorRepository;
     }
 
     @Override
@@ -59,7 +63,7 @@ public class RutaService implements RutaServiceI {
                     throw new EnvioYaAsignadoException(dto.pedidoId());
                 });
 
-        Ruta ruta = gestorRutaActiva.obtenerOCrear(dto.conductorId());
+        Ruta ruta = gestorRutaActiva.obtenerOCrear(conductorInternoId(dto.conductorId()));
         ruta.agregarParada(dto.pedidoId());
 
         return mapToDTO(rutaRepository.save(ruta));
@@ -86,7 +90,7 @@ public class RutaService implements RutaServiceI {
         rutaOrigen.cancelarParada(dto.pedidoId());
         rutaRepository.save(rutaOrigen);
 
-        Ruta rutaDestino = gestorRutaActiva.obtenerOCrear(dto.nuevoConductorId());
+        Ruta rutaDestino = gestorRutaActiva.obtenerOCrear(conductorInternoId(dto.nuevoConductorId()));
         rutaDestino.agregarParada(dto.pedidoId());
 
         return mapToDTO(rutaRepository.save(rutaDestino));
@@ -94,7 +98,7 @@ public class RutaService implements RutaServiceI {
 
     @Override
     public RutaResponseDTO obtenerRutaActivaDeConductor(Long conductorId) {
-        Ruta ruta = rutaRepository.findByConductorIdAndFecha(conductorId, LocalDate.now())
+        Ruta ruta = rutaRepository.findByConductorIdAndFecha(conductorInternoId(conductorId), LocalDate.now())
                 .orElseThrow(() -> RutaNoEncontradaException.paraConductor(conductorId));
 
         return mapToDTO(ruta);
@@ -112,11 +116,22 @@ public class RutaService implements RutaServiceI {
                 ))
                 .toList();
 
+        Long usuarioId = conductorRepository.findById(ruta.getConductorId())
+            .map(conductor -> conductor.getUsuario().getId())
+            .orElse(ruta.getConductorId());
+
         return new RutaResponseDTO(
                 ruta.getId(),
-                ruta.getConductorId(),
+            usuarioId,
                 ruta.getFecha(),
                 paradas
         );
+    }
+
+    private Long conductorInternoId(Long usuarioId) {
+        return conductorRepository.findByUsuarioId(usuarioId)
+                .map(conductor -> conductor.getId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No existe un conductor para el usuario con ID: " + usuarioId));
     }
 }

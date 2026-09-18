@@ -73,6 +73,23 @@ public class PedidoService implements PedidoServiceI {
     }
 
     @Override
+    public List<PedidoResponseDTO> listarValidados() {
+        return pedidoRepository.findByEstadoInOrderByFechaCreacionAsc(List.of(EstadoPedido.VALIDADO))
+                .stream()
+                .map(this::mapToDTO)
+                .toList();
+    }
+
+    @Override
+    public List<PedidoResponseDTO> listarActivables() {
+        List<EstadoPedido> estados = List.of(EstadoPedido.VALIDADO, EstadoPedido.EN_TRANSITO);
+        return pedidoRepository.findByEstadoInOrderByFechaCreacionAsc(estados)
+                .stream()
+                .map(this::mapToDTO)
+                .toList();
+    }
+
+    @Override
     public List<PedidoResponseDTO> listarEnTransito() {
         return pedidoRepository.findByEstadoInOrderByFechaCreacionAsc(List.of(EstadoPedido.EN_TRANSITO))
                 .stream()
@@ -83,6 +100,13 @@ public class PedidoService implements PedidoServiceI {
     @Override
     public PedidoResponseDTO obtener(Long id) {
         return mapToDTO(buscarOLanzar(id));
+    }
+
+    @Override
+    public PedidoResponseDTO obtenerPorTracking(String numeroTracking) {
+        Pedido pedido = pedidoRepository.findByNumeroTracking(numeroTracking)
+                .orElseThrow(() -> new PedidoNoEncontradoException(numeroTracking));
+        return mapToDTO(pedido);
     }
 
     @Override

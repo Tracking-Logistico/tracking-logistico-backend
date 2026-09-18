@@ -1,0 +1,5 @@
+-- Alinea las columnas de medidas con los campos Double de la entidad Pedido.
+ALTER TABLE pedidos ALTER COLUMN peso_kg SET DATA TYPE DOUBLE PRECISION;
+ALTER TABLE pedidos ALTER COLUMN largo_cm SET DATA TYPE DOUBLE PRECISION;
+ALTER TABLE pedidos ALTER COLUMN ancho_cm SET DATA TYPE DOUBLE PRECISION;
+ALTER TABLE pedidos ALTER COLUMN alto_cm SET DATA TYPE DOUBLE PRECISION;

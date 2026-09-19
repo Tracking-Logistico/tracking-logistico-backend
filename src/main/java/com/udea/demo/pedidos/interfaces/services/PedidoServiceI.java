@@ -13,7 +13,13 @@ public interface PedidoServiceI {
 
     List<PedidoResponseDTO> listarPendientes();
 
+    List<PedidoResponseDTO> listarValidados();
+
+    List<PedidoResponseDTO> listarActivables();
+
     PedidoResponseDTO obtener(Long id);
+
+    PedidoResponseDTO obtenerPorTracking(String numeroTracking);
 
     PedidoResponseDTO validar(Long id, ValidarPedidoRequestDTO dto);
 

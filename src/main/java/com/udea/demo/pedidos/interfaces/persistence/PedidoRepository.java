@@ -10,4 +10,6 @@ import java.util.List;
 @Repository
 public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     List<Pedido> findByEstadoInOrderByFechaCreacionAsc(List<EstadoPedido> estados);
+
+    java.util.Optional<Pedido> findByNumeroTracking(String numeroTracking);
 }

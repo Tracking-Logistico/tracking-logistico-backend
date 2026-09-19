@@ -36,10 +36,30 @@ public class PedidoController {
         return ResponseEntity.ok(pedidoService.listarPendientes());
     }
 
+    @GetMapping("/transito")
+    public ResponseEntity<List<PedidoResponseDTO>> listarEnTransito() {
+        return ResponseEntity.ok(pedidoService.listarEnTransito());
+    }
+
+    @GetMapping("/validados")
+    public ResponseEntity<List<PedidoResponseDTO>> listarValidados() {
+        return ResponseEntity.ok(pedidoService.listarValidados());
+    }
+
+    @GetMapping("/activables")
+    public ResponseEntity<List<PedidoResponseDTO>> listarActivables() {
+        return ResponseEntity.ok(pedidoService.listarActivables());
+    }
+
     // Criterio 2: Validación de la información suministrada antes de decidir
     @GetMapping("/{id}")
     public ResponseEntity<PedidoResponseDTO> obtenerPedido(@PathVariable Long id) {
         return ResponseEntity.ok(pedidoService.obtener(id));
+    }
+
+    @GetMapping("/tracking/{numeroTracking}")
+    public ResponseEntity<PedidoResponseDTO> obtenerPorTracking(@PathVariable String numeroTracking) {
+        return ResponseEntity.ok(pedidoService.obtenerPorTracking(numeroTracking));
     }
 
     // Criterio 3: Sugerencia y Asignación de Prioridad (confirmar o ajustar)

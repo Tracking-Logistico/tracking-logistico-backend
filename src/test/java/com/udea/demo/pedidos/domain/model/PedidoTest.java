@@ -129,8 +129,8 @@ class PedidoTest {
             assertThat(pedido.getNumeroTracking()).isEqualTo(NUMERO_TRACKING);
         }
 
-        @Test
         @Disabled("Inconsistencia en la prueba de idempotencia")
+        @Test
         @DisplayName("BUG CP-HU03B-01: la segunda activación debería ser idempotente")
         void activarTracking_error_idempotencia() {
             // Arrange

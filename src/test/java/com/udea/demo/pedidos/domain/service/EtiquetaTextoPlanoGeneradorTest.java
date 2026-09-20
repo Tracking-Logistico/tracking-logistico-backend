@@ -6,8 +6,9 @@ import com.udea.demo.pedidos.domain.model.TipoServicio;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Disabled;
 
 /**
  * Pruebas unitarias del generador de etiqueta (dominio).

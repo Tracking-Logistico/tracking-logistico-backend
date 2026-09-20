@@ -43,3 +43,6 @@ jobs:
         run: >
           ./mvnw -B clean verify
           org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.organization=tracklog20262
+          -Dsonar.projectKey=Tracking-Logistico_tracking-logistico-backend
+          -Dsonar.host.url=https://sonarcloud.io

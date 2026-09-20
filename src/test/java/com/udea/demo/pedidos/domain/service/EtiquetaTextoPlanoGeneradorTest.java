@@ -63,7 +63,7 @@ class EtiquetaTextoPlanoGeneradorTest {
      *
      * Esta prueba DEBE FALLAR mientras no exista la generación de PDF con QR.
      */
-    @Disabled("Revisión de formato PDF pendiente")
+    @Disabled("BUG CP-HU03B-02: pendiente implementar PDF con QR. Ver HU03-B.")
     @Test
     @DisplayName("BUG CP-HU03B-02: la etiqueta debería ser PDF con código QR y checksum")
     void generar_error_pdfConQr() {

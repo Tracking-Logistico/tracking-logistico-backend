@@ -6,6 +6,9 @@ import com.udea.demo.rutas.application.dto.ReasignarEnvioRequestDTO;
 import com.udea.demo.rutas.application.dto.ReordenarRutaRequestDTO;
 import com.udea.demo.rutas.application.dto.RutaResponseDTO;
 import com.udea.demo.rutas.interfaces.services.RutaServiceI;
+import com.udea.demo.usuarios.application.service.ActorAuthorizationService;
+import com.udea.demo.usuarios.domain.model.Rol;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -19,9 +22,11 @@ import java.util.List;
 public class RutaController {
 
     private final RutaServiceI rutaService;
+    private final ActorAuthorizationService actorAuthorizationService;
 
-    public RutaController(RutaServiceI rutaService) {
+    public RutaController(RutaServiceI rutaService, ActorAuthorizationService actorAuthorizationService) {
         this.rutaService = rutaService;
+        this.actorAuthorizationService = actorAuthorizationService;
     }
 
     // Criterio 1: Visualización de envíos pendientes de asignación
@@ -39,6 +44,10 @@ public class RutaController {
     // Consulta de apoyo para revisar la ruta antes de organizarla
     @GetMapping("/conductores/{conductorId}")
     public ResponseEntity<RutaResponseDTO> obtenerRutaDeConductor(@PathVariable Long conductorId) {
+        if (SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_CONDUCTOR".equals(authority.getAuthority()))) {
+            actorAuthorizationService.exigirPropietario(conductorId, Rol.CONDUCTOR);
+        }
         return ResponseEntity.ok(rutaService.obtenerRutaActivaDeConductor(conductorId));
     }
 

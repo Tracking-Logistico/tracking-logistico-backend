@@ -20,17 +20,23 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
     private final OperadorRepository operadorRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordTemporalService passwordTemporalService;
+    private final ActorAuthorizationService actorAuthorizationService;
+    private final SesionUsuarioRepository sesionRepository;
 
     public UsuarioInternoService(UsuarioRepository usuarioRepository,
                                  ConductorRepository conductorRepository,
                                  OperadorRepository operadorRepository,
                                  PasswordEncoder passwordEncoder,
-                                 PasswordTemporalService passwordTemporalService) {
+                                 PasswordTemporalService passwordTemporalService,
+                                 ActorAuthorizationService actorAuthorizationService,
+                                 SesionUsuarioRepository sesionRepository) {
         this.usuarioRepository = usuarioRepository;
         this.conductorRepository = conductorRepository;
         this.operadorRepository = operadorRepository;
         this.passwordEncoder = passwordEncoder;
         this.passwordTemporalService = passwordTemporalService;
+        this.actorAuthorizationService = actorAuthorizationService;
+        this.sesionRepository = sesionRepository;
     }
 
     @Override
@@ -161,14 +167,17 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
     public void cambiarPassword(Long id, String passwordActual,
                                 String nuevaPassword, String confirmarPassword) {
 
+        // Password changes are always scoped to the signed-in account.
+        // Do not allow a caller to change another user's password using an ID.
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new UsuarioNoEncontradoException(id));
+        actorAuthorizationService.exigirPropietario(id, usuario.getRol());
+
         if (!nuevaPassword.equals(confirmarPassword)) {
             throw new PasswordNoCoincideException();
         }
 
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new UsuarioNoEncontradoException(id));
-
-        if (!usuario.getActivo()) {
+        if (!Boolean.TRUE.equals(usuario.getActivo())) {
             throw new CuentaInactivaException();
         }
 
@@ -187,6 +196,7 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         }
 
         usuarioRepository.save(usuario);
+        sesionRepository.deleteByUsuarioId(usuario.getId());
     }
 
     // ---------- helpers ----------

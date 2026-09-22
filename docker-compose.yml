@@ -1,14 +1,14 @@
+# Desarrollo/local: Compose levanta PostgreSQL junto al backend.
+# Render despliega el Dockerfile, NO este Compose.
 services:
-
   postgres:
     image: postgres:17-alpine
-    container_name: sistema_logistica_db
     environment:
-      POSTGRES_DB: ${DB_NAME:-logistica_db}
-      POSTGRES_USER: ${DB_USER:-logistica_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-logistica_pass}
+      POSTGRES_DB: logistica_db
+      POSTGRES_USER: logistica_user
+      POSTGRES_PASSWORD: logistica_pass
     ports:
-      - "${DB_PUERTO:-5432}:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,5 +16,35 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILE: postgres
+      PORT: 8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: logistica_db
+      DB_USER: logistica_user
+      DB_PASSWORD: logistica_pass
+      CORS_ALLOWED_ORIGIN: http://localhost:5173
+      APP_VERIFICATION_URL: http://localhost:8080/api/v1/clientes/verificar
+      AUTH_PASSWORD_RESET_URL: http://localhost:5173/restablecer-password
+      # Gmail SMTP solo para uso local/redes que permitan el puerto 587.
+      # La antigua clave Gmail expuesta no se vuelve a escribir en el proyecto.
+      MAIL_ENABLED: "false"
+      MAIL_PROVIDER: smtp
+      MAIL_FROM: logistrack01@gmail.com
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: logistrack01@gmail.com
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:

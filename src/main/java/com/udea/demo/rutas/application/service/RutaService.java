@@ -97,6 +97,7 @@ public class RutaService implements RutaServiceI {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public RutaResponseDTO obtenerRutaActivaDeConductor(Long conductorId) {
         Ruta ruta = rutaRepository.findByConductorIdAndFecha(conductorInternoId(conductorId), LocalDate.now())
                 .orElseThrow(() -> RutaNoEncontradaException.paraConductor(conductorId));

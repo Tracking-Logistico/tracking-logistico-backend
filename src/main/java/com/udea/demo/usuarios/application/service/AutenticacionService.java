@@ -37,6 +37,7 @@ import com.udea.demo.usuarios.interfaces.persistence.TokenRestablecimientoPasswo
 import com.udea.demo.usuarios.interfaces.persistence.UsuarioRepository;
 import com.udea.demo.usuarios.interfaces.services.AutenticacionServiceI;
 import com.udea.demo.usuarios.interfaces.services.EmailServiceI;
+import com.udea.demo.usuarios.domain.exception.EntregaCorreoException;
 
 @Service
 public class AutenticacionService implements AutenticacionServiceI {
@@ -51,6 +52,8 @@ public class AutenticacionService implements AutenticacionServiceI {
     private final PasswordEncoder passwordEncoder;
     private final EmailServiceI emailService;
 
+    @Value("${app.mail.enabled:false}")
+    private boolean mailEnabled;
     @Value("${app.auth.failed-attempt-window-minutes:10}")
     private long ventanaIntentosMinutos;
     @Value("${app.auth.lock-minutes:15}")
@@ -109,7 +112,8 @@ public class AutenticacionService implements AutenticacionServiceI {
         SesionUsuario sesion = sesionRepository.findByRefreshTokenHash(hash(request.refreshToken()))
                 .orElseThrow(SesionInvalidaException::new);
         if (sesion.getRevokedAt() != null || sesion.getRefreshTokenExpiresAt().isBefore(ahora)
-                || !Boolean.TRUE.equals(sesion.getUsuario().getActivo())) {
+                || !Boolean.TRUE.equals(sesion.getUsuario().getActivo())
+                || sesion.getUsuario().getEstado() != EstadoUsuario.ACTIVO) {
             throw new SesionInvalidaException();
         }
         sesion.setRevokedAt(ahora);
@@ -131,6 +135,9 @@ public class AutenticacionService implements AutenticacionServiceI {
     @Override
     @Transactional
     public void solicitarRestablecimiento(SolicitarRestablecimientoPasswordDTO request) {
+        if (!mailEnabled) {
+            throw new EntregaCorreoException();
+        }
         usuarioRepository.findByEmail(request.email()).ifPresent(usuario -> {
             resetRepository.deleteByUsuarioId(usuario.getId());
             String token = generarToken();
@@ -155,7 +162,17 @@ public class AutenticacionService implements AutenticacionServiceI {
         }
 
         Usuario usuario = token.getUsuario();
+        if (!Boolean.TRUE.equals(usuario.getActivo())
+                || usuario.getEstado() == EstadoUsuario.INACTIVO
+                || usuario.getEstado() == EstadoUsuario.BLOQUEADO) {
+            throw new TokenRestablecimientoInvalidoException();
+        }
         usuario.setPassword(passwordEncoder.encode(request.nuevaPassword()));
+        // Internal users created by CLI can activate their account through the existing
+        // password recovery flow; unverified client accounts still require email verification.
+        if (usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION) {
+            usuario.setEstado(EstadoUsuario.ACTIVO);
+        }
         usuarioRepository.save(usuario);
         token.setUsadoEn(LocalDateTime.now());
         resetRepository.save(token);

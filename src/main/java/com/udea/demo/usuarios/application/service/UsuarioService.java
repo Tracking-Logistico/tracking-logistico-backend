@@ -1,5 +1,14 @@
 package com.udea.demo.usuarios.application.service;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.udea.demo.usuarios.application.dto.ActualizarPerfilRequestDTO;
 import com.udea.demo.usuarios.application.dto.RegistroClienteRequestDTO;
 import com.udea.demo.usuarios.application.dto.UsuarioResponseDTO;
@@ -9,12 +18,6 @@ import com.udea.demo.usuarios.domain.model.TokenVerificacion;
 import com.udea.demo.usuarios.domain.model.Usuario;
 import com.udea.demo.usuarios.infrastructure.persistence.TokenVerificacionRepository;
 import com.udea.demo.usuarios.infrastructure.persistence.UsuarioRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Service
 public class UsuarioService {
@@ -22,13 +25,16 @@ public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final TokenVerificacionRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JavaMailSender mailSender;
 
     public UsuarioService(UsuarioRepository usuarioRepository,
                           TokenVerificacionRepository tokenRepository,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          JavaMailSender mailSender) {
         this.usuarioRepository = usuarioRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
+        this.mailSender = mailSender;
     }
 
     @Transactional
@@ -66,9 +72,24 @@ public class UsuarioService {
 
         tokenRepository.save(tokenVerificacion);
 
-        System.out.println(">>> TOKEN DE VERIFICACIÓN GENERADO PARA " + guardado.getEmail() + ": " + tokenUUID);
+        // Envío automático de correo con el token de activación
+        enviarCorreoVerificacion(guardado.getEmail(), guardado.getNombre(), tokenUUID);
 
         return mapToResponseDTO(guardado);
+    }
+
+    private void enviarCorreoVerificacion(String emailDestino, String nombreUsuario, String token) {
+        String urlVerificacion = "http://localhost:8080/api/v1/usuarios/verificar?token=" + token;
+
+        SimpleMailMessage mensaje = new SimpleMailMessage();
+        mensaje.setTo(emailDestino);
+        mensaje.setSubject("Verificación de Cuenta - Tracking Logístico");
+        mensaje.setText("Hola " + nombreUsuario + ",\n\n"
+                + "¡Gracias por registrarte! Para activar tu cuenta, ingresa al siguiente enlace:\n"
+                + urlVerificacion + "\n\n"
+                + "Este enlace expira en 2 horas.");
+
+        mailSender.send(mensaje);
     }
 
     @Transactional

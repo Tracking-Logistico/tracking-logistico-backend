@@ -3,8 +3,8 @@ package com.udea.demo.usuarios.application.service;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.annotation.Value;
+import com.udea.demo.usuarios.interfaces.services.EmailServiceI;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,18 +30,24 @@ public class ClienteService implements ClienteServiceI {
     private final ClienteRepository clienteRepository;
     private final TokenVerificacionRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JavaMailSender mailSender;
+    private final EmailServiceI emailService;
+    private final ActorAuthorizationService actorAuthorizationService;
+
+    @Value("${app.verification-url}")
+    private String verificationUrl;
 
     public ClienteService(UsuarioRepository usuarioRepository,
                           ClienteRepository clienteRepository,
                           TokenVerificacionRepository tokenRepository,
                           PasswordEncoder passwordEncoder,
-                          JavaMailSender mailSender) {
+                          EmailServiceI emailService,
+                          ActorAuthorizationService actorAuthorizationService) {
         this.usuarioRepository = usuarioRepository;
         this.clienteRepository = clienteRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
-        this.mailSender = mailSender;
+        this.emailService = emailService;
+        this.actorAuthorizationService = actorAuthorizationService;
     }
 
     @Override 
@@ -86,23 +92,10 @@ public class ClienteService implements ClienteServiceI {
 
         tokenRepository.save(tokenVerificacion);
 
-        enviarCorreoVerificacion(guardado.getEmail(), guardado.getNombre(), tokenUUID);
+        emailService.enviarVerificacion(guardado.getEmail(), guardado.getNombre(),
+                verificationUrl + (verificationUrl.contains("?") ? "&" : "?") + "token=" + tokenUUID);
 
         return mapToClienteResponseDTO(cliente);
-    }
-
-    private void enviarCorreoVerificacion(String emailDestino, String nombreUsuario, String token) {
-        String urlVerificacion = "https://tracking-logistico-backend.onrender.com/api/v1/clientes/verificar?token=" + token;
-
-        SimpleMailMessage mensaje = new SimpleMailMessage();
-        mensaje.setTo(emailDestino);
-        mensaje.setSubject("Verificación de Cuenta - Tracking Logístico");
-        mensaje.setText("Hola " + nombreUsuario + ",\n\n"
-                + "¡Gracias por registrarte! Para activar tu cuenta, ingresa al siguiente enlace:\n"
-                + urlVerificacion + "\n\n"
-                + "Este enlace expira en 2 horas.");
-
-        mailSender.send(mensaje);
     }
 
     @Override 
@@ -128,6 +121,7 @@ public class ClienteService implements ClienteServiceI {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
 
+        actorAuthorizationService.exigirPropietario(usuario.getId(), Rol.CLIENTE);
         usuario.setNombre(dto.nombre());
         if (dto.telefono() != null) usuario.setTelefono(dto.telefono());
         if (dto.direccion() != null) usuario.setDireccion(dto.direccion());
@@ -143,6 +137,7 @@ public class ClienteService implements ClienteServiceI {
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado con ID: " + id));
         Usuario u = cliente.getUsuario();
+        actorAuthorizationService.exigirPropietario(u.getId(), Rol.CLIENTE);
         u.setActivo(false);
         u.setEstado(EstadoUsuario.INACTIVO);
         usuarioRepository.save(u);

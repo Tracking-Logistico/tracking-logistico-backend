@@ -12,6 +12,7 @@ import com.udea.demo.pedidos.domain.service.GeneradorEtiqueta;
 import com.udea.demo.pedidos.domain.service.PrioridadStrategy;
 import com.udea.demo.pedidos.interfaces.persistence.PedidoRepository;
 import com.udea.demo.pedidos.interfaces.services.PedidoServiceI;
+import com.udea.demo.usuarios.application.service.ActorAuthorizationService;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,17 +28,20 @@ public class PedidoService implements PedidoServiceI {
     private final GeneradorNumeroPedido generadorNumeroPedido;
     private final GeneradorNumeroTracking generadorNumeroTracking;
     private final GeneradorEtiqueta generadorEtiqueta;
+    private final ActorAuthorizationService actorAuthorizationService;
 
     public PedidoService(PedidoRepository pedidoRepository,
                          PrioridadStrategy prioridadStrategy,
                          GeneradorNumeroPedido generadorNumeroPedido,
                          GeneradorNumeroTracking generadorNumeroTracking,
-                         GeneradorEtiqueta generadorEtiqueta) {
+                         GeneradorEtiqueta generadorEtiqueta,
+                         ActorAuthorizationService actorAuthorizationService) {
         this.pedidoRepository = pedidoRepository;
         this.prioridadStrategy = prioridadStrategy;
         this.generadorNumeroPedido = generadorNumeroPedido;
         this.generadorNumeroTracking = generadorNumeroTracking;
         this.generadorEtiqueta = generadorEtiqueta;
+        this.actorAuthorizationService = actorAuthorizationService;
     }
 
     @Override
@@ -112,6 +116,7 @@ public class PedidoService implements PedidoServiceI {
     @Override
     @Transactional
     public PedidoResponseDTO validar(Long id, ValidarPedidoRequestDTO dto) {
+        actorAuthorizationService.exigirOperador(dto.operadorId());
         Pedido pedido = buscarOLanzar(id);
 
         pedido.validar(dto.aprobar(), dto.prioridadConfirmada(), dto.observaciones(), dto.operadorId());

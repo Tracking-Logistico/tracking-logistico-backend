@@ -109,7 +109,8 @@ public class AutenticacionService implements AutenticacionServiceI {
         SesionUsuario sesion = sesionRepository.findByRefreshTokenHash(hash(request.refreshToken()))
                 .orElseThrow(SesionInvalidaException::new);
         if (sesion.getRevokedAt() != null || sesion.getRefreshTokenExpiresAt().isBefore(ahora)
-                || !Boolean.TRUE.equals(sesion.getUsuario().getActivo())) {
+                || !Boolean.TRUE.equals(sesion.getUsuario().getActivo())
+                || sesion.getUsuario().getEstado() != EstadoUsuario.ACTIVO) {
             throw new SesionInvalidaException();
         }
         sesion.setRevokedAt(ahora);
@@ -155,7 +156,17 @@ public class AutenticacionService implements AutenticacionServiceI {
         }
 
         Usuario usuario = token.getUsuario();
+        if (!Boolean.TRUE.equals(usuario.getActivo())
+                || usuario.getEstado() == EstadoUsuario.INACTIVO
+                || usuario.getEstado() == EstadoUsuario.BLOQUEADO) {
+            throw new TokenRestablecimientoInvalidoException();
+        }
         usuario.setPassword(passwordEncoder.encode(request.nuevaPassword()));
+        // Internal users created by CLI can activate their account through the existing
+        // password recovery flow; unverified client accounts still require email verification.
+        if (usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION) {
+            usuario.setEstado(EstadoUsuario.ACTIVO);
+        }
         usuarioRepository.save(usuario);
         token.setUsadoEn(LocalDateTime.now());
         resetRepository.save(token);

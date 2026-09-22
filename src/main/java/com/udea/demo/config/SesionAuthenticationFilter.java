@@ -18,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.udea.demo.usuarios.application.service.AutenticacionService;
 import com.udea.demo.usuarios.domain.model.Rol;
+import com.udea.demo.usuarios.domain.model.EstadoUsuario;
 import com.udea.demo.usuarios.interfaces.persistence.SesionUsuarioRepository;
 
 @Component
@@ -45,9 +46,16 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
                 boolean vigente = sesion.getRevokedAt() == null
                         && sesion.getAccessTokenExpiresAt().isAfter(ahora)
                         && sesion.getLastActivityAt().plusMinutes(minutosInactividad).isAfter(ahora)
-                        && Boolean.TRUE.equals(sesion.getUsuario().getActivo());
+                        && Boolean.TRUE.equals(sesion.getUsuario().getActivo())
+                        && sesion.getUsuario().getEstado() == EstadoUsuario.ACTIVO;
                 if (vigente) {
                     sesion.setLastActivityAt(ahora);
+                    // Rolling inactivity expiration without changing the Bearer token or the API contract.
+                    LocalDateTime limite = ahora.plusMinutes(minutosInactividad);
+                    if (limite.isAfter(sesion.getRefreshTokenExpiresAt())) {
+                        limite = sesion.getRefreshTokenExpiresAt();
+                    }
+                    sesion.setAccessTokenExpiresAt(limite);
                     sesionRepository.save(sesion);
                     var auth = new UsernamePasswordAuthenticationToken(
                             sesion.getUsuario().getEmail(), null,

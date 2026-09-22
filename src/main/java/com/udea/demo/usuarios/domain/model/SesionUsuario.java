@@ -54,5 +54,8 @@ public class SesionUsuario {
     public LocalDateTime getLastActivityAt() { return lastActivityAt; }
     public LocalDateTime getRevokedAt() { return revokedAt; }
     public void setLastActivityAt(LocalDateTime lastActivityAt) { this.lastActivityAt = lastActivityAt; }
+    public void setAccessTokenExpiresAt(LocalDateTime accessTokenExpiresAt) {
+        this.accessTokenExpiresAt = accessTokenExpiresAt;
+    }
     public void setRevokedAt(LocalDateTime revokedAt) { this.revokedAt = revokedAt; }
 }

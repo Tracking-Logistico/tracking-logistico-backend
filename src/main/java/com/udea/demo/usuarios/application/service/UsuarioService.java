@@ -16,8 +16,8 @@ import com.udea.demo.usuarios.domain.model.EstadoUsuario;
 import com.udea.demo.usuarios.domain.model.Rol;
 import com.udea.demo.usuarios.domain.model.TokenVerificacion;
 import com.udea.demo.usuarios.domain.model.Usuario;
-import com.udea.demo.usuarios.infrastructure.persistence.TokenVerificacionRepository;
-import com.udea.demo.usuarios.infrastructure.persistence.UsuarioRepository;
+import com.udea.demo.usuarios.interfaces.persistence.TokenVerificacionRepository;
+import com.udea.demo.usuarios.interfaces.persistence.UsuarioRepository;
 
 @Service
 public class UsuarioService {
@@ -72,14 +72,13 @@ public class UsuarioService {
 
         tokenRepository.save(tokenVerificacion);
 
-        // Envío automático de correo con el token de activación
         enviarCorreoVerificacion(guardado.getEmail(), guardado.getNombre(), tokenUUID);
 
         return mapToResponseDTO(guardado);
     }
 
     private void enviarCorreoVerificacion(String emailDestino, String nombreUsuario, String token) {
-        String urlVerificacion = "http://localhost:8080/api/v1/usuarios/verificar?token=" + token;
+        String urlVerificacion = "https://tracking-logistico-backend.onrender.com/api/v1/clientes/verificar?token=" + token;
 
         SimpleMailMessage mensaje = new SimpleMailMessage();
         mensaje.setTo(emailDestino);

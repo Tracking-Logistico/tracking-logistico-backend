@@ -28,6 +28,7 @@ public record RegistroClienteRequestDTO(
 
     String telefono,
     String direccion,
+    String ciudad,
 
     @NotNull(message = "Debe especificar la aceptación de términos")
     @AssertTrue(message = "Debe aceptar los términos y condiciones para registrarse")

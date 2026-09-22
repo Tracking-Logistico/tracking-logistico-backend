@@ -10,43 +10,35 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.udea.demo.usuarios.application.dto.ActualizarPerfilRequestDTO;
-import com.udea.demo.usuarios.application.dto.ClienteResponseDTO;
 import com.udea.demo.usuarios.application.dto.RegistroClienteRequestDTO;
 import com.udea.demo.usuarios.application.dto.UsuarioResponseDTO;
-import com.udea.demo.usuarios.domain.model.Cliente;
 import com.udea.demo.usuarios.domain.model.EstadoUsuario;
 import com.udea.demo.usuarios.domain.model.Rol;
 import com.udea.demo.usuarios.domain.model.TokenVerificacion;
 import com.udea.demo.usuarios.domain.model.Usuario;
-import com.udea.demo.usuarios.interfaces.persistence.ClienteRepository;
 import com.udea.demo.usuarios.interfaces.persistence.TokenVerificacionRepository;
 import com.udea.demo.usuarios.interfaces.persistence.UsuarioRepository;
-import com.udea.demo.usuarios.interfaces.services.ClienteServiceI;
 
 @Service
-public class ClienteService implements ClienteServiceI {
+public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
-    private final ClienteRepository clienteRepository;
     private final TokenVerificacionRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
 
-    public ClienteService(UsuarioRepository usuarioRepository,
-                          ClienteRepository clienteRepository,
+    public UsuarioService(UsuarioRepository usuarioRepository,
                           TokenVerificacionRepository tokenRepository,
                           PasswordEncoder passwordEncoder,
                           JavaMailSender mailSender) {
         this.usuarioRepository = usuarioRepository;
-        this.clienteRepository = clienteRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailSender = mailSender;
     }
 
-    @Override 
     @Transactional
-    public ClienteResponseDTO registrarCliente(RegistroClienteRequestDTO dto) {
+    public UsuarioResponseDTO registrarCliente(RegistroClienteRequestDTO dto) {
         if (!dto.password().equals(dto.confirmarPassword())) {
             throw new IllegalArgumentException("Las contraseñas no coinciden");
         }
@@ -71,12 +63,6 @@ public class ClienteService implements ClienteServiceI {
 
         Usuario guardado = usuarioRepository.save(usuario);
 
-        Cliente cliente = Cliente.builder()
-                .usuario(guardado)
-                .ciudad(dto.ciudad())
-                .build();
-        clienteRepository.save(cliente);
-
         String tokenUUID = UUID.randomUUID().toString();
         TokenVerificacion tokenVerificacion = TokenVerificacion.builder()
                 .token(tokenUUID)
@@ -88,7 +74,7 @@ public class ClienteService implements ClienteServiceI {
 
         enviarCorreoVerificacion(guardado.getEmail(), guardado.getNombre(), tokenUUID);
 
-        return mapToClienteResponseDTO(cliente);
+        return mapToResponseDTO(guardado);
     }
 
     private void enviarCorreoVerificacion(String emailDestino, String nombreUsuario, String token) {
@@ -105,7 +91,6 @@ public class ClienteService implements ClienteServiceI {
         mailSender.send(mensaje);
     }
 
-    @Override 
     @Transactional
     public void verificarCuenta(String token) {
         TokenVerificacion tokenVerificacion = tokenRepository.findByToken(token)
@@ -122,7 +107,6 @@ public class ClienteService implements ClienteServiceI {
         tokenRepository.delete(tokenVerificacion);
     }
 
-    @Override 
     @Transactional
     public UsuarioResponseDTO actualizarPerfil(Long id, ActualizarPerfilRequestDTO dto) {
         Usuario usuario = usuarioRepository.findById(id)
@@ -133,39 +117,29 @@ public class ClienteService implements ClienteServiceI {
         if (dto.direccion() != null) usuario.setDireccion(dto.direccion());
 
         Usuario actualizado = usuarioRepository.save(usuario);
-
-        return mapToUsuarioDTO(actualizado);
+        return mapToResponseDTO(actualizado);
     }
 
-    @Override
     @Transactional
-    public void desactivarCuentaCliente(Long id) {
-        Cliente cliente = clienteRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado con ID: " + id));
-        Usuario u = cliente.getUsuario();
-        u.setActivo(false);
-        u.setEstado(EstadoUsuario.INACTIVO);
-        usuarioRepository.save(u);
+    public void desactivarCuenta(Long id) {
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
+
+        usuario.setActivo(false);
+        usuario.setEstado(EstadoUsuario.INACTIVO);
+        usuarioRepository.save(usuario);
     }
 
-    private ClienteResponseDTO mapToClienteResponseDTO(Cliente c) {
-        return new ClienteResponseDTO(
-                c.getId(),
-                c.getUsuario().getNombre(),
-                c.getUsuario().getEmail(),
-                c.getUsuario().getTelefono(),
-                c.getUsuario().getDireccion(),
-                c.getCiudad(),
-                c.getUsuario().getRol(),
-                c.getUsuario().getEstado(),
-                c.getUsuario().getFechaCreacion()
-        );
-    }
-
-    private UsuarioResponseDTO mapToUsuarioDTO(Usuario u) {
+    private UsuarioResponseDTO mapToResponseDTO(Usuario u) {
         return new UsuarioResponseDTO(
-                u.getId(), u.getNombre(), u.getEmail(),
-                u.getTelefono(), u.getDireccion(),
-                u.getRol(), u.getEstado(), u.getFechaCreacion());
+                u.getId(),
+                u.getNombre(),
+                u.getEmail(),
+                u.getTelefono(),
+                u.getDireccion(),
+                u.getRol(),
+                u.getEstado(),
+                u.getFechaCreacion()
+        );
     }
 }

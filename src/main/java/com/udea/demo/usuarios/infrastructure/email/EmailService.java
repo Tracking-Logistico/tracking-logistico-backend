@@ -31,6 +31,7 @@ public class EmailService implements EmailServiceI {
         return factory;
     }
 
+    @Value("${app.mail.enabled:false}") private boolean mailEnabled;
     @Value("${app.mail.provider:resend}") private String provider;
     @Value("${app.mail.resend-api-key:}") private String resendApiKey;
     @Value("${app.mail.from:}") private String from;
@@ -57,6 +58,9 @@ public class EmailService implements EmailServiceI {
     }
 
     private void enviar(String destinatario, String asunto, String contenido) {
+        if (!mailEnabled) {
+            return;
+        }
         try {
             if ("resend".equalsIgnoreCase(provider)) {
                 if (resendApiKey.isBlank() || from.isBlank()) {

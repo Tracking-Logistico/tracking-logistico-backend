@@ -35,6 +35,8 @@ public class ClienteService implements ClienteServiceI {
 
     @Value("${app.verification-url}")
     private String verificationUrl;
+    @Value("${app.mail.enabled:false}")
+    private boolean mailEnabled;
 
     public ClienteService(UsuarioRepository usuarioRepository,
                           ClienteRepository clienteRepository,
@@ -67,7 +69,7 @@ public class ClienteService implements ClienteServiceI {
                 .telefono(dto.telefono())
                 .direccion(dto.direccion())
                 .rol(Rol.CLIENTE)
-                .estado(EstadoUsuario.PENDIENTE_VERIFICACION)
+                .estado(mailEnabled ? EstadoUsuario.PENDIENTE_VERIFICACION : EstadoUsuario.ACTIVO)
                 .activo(true)
                 .aceptoTerminos(dto.aceptoTerminos())
                 .versionTerminos(dto.versionTerminos())
@@ -83,17 +85,19 @@ public class ClienteService implements ClienteServiceI {
                 .build();
         clienteRepository.save(cliente);
 
-        String tokenUUID = UUID.randomUUID().toString();
-        TokenVerificacion tokenVerificacion = TokenVerificacion.builder()
-                .token(tokenUUID)
-                .usuario(guardado)
-                .fechaExpiracion(LocalDateTime.now().plusHours(2))
-                .build();
+        if (mailEnabled) {
+            String tokenUUID = UUID.randomUUID().toString();
+            TokenVerificacion tokenVerificacion = TokenVerificacion.builder()
+                    .token(tokenUUID)
+                    .usuario(guardado)
+                    .fechaExpiracion(LocalDateTime.now().plusHours(2))
+                    .build();
 
-        tokenRepository.save(tokenVerificacion);
+            tokenRepository.save(tokenVerificacion);
 
-        emailService.enviarVerificacion(guardado.getEmail(), guardado.getNombre(),
-                verificationUrl + (verificationUrl.contains("?") ? "&" : "?") + "token=" + tokenUUID);
+            emailService.enviarVerificacion(guardado.getEmail(), guardado.getNombre(),
+                    verificationUrl + (verificationUrl.contains("?") ? "&" : "?") + "token=" + tokenUUID);
+        }
 
         return mapToClienteResponseDTO(cliente);
     }

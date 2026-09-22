@@ -34,6 +34,7 @@ services:
       AUTH_PASSWORD_RESET_URL: http://localhost:5173/restablecer-password
       # Gmail SMTP solo para uso local/redes que permitan el puerto 587.
       # La antigua clave Gmail expuesta no se vuelve a escribir en el proyecto.
+      MAIL_ENABLED: "false"
       MAIL_PROVIDER: smtp
       MAIL_FROM: logistrack01@gmail.com
       MAIL_HOST: smtp.gmail.com

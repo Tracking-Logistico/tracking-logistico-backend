@@ -37,6 +37,7 @@ import com.udea.demo.usuarios.interfaces.persistence.TokenRestablecimientoPasswo
 import com.udea.demo.usuarios.interfaces.persistence.UsuarioRepository;
 import com.udea.demo.usuarios.interfaces.services.AutenticacionServiceI;
 import com.udea.demo.usuarios.interfaces.services.EmailServiceI;
+import com.udea.demo.usuarios.domain.exception.EntregaCorreoException;
 
 @Service
 public class AutenticacionService implements AutenticacionServiceI {
@@ -51,6 +52,8 @@ public class AutenticacionService implements AutenticacionServiceI {
     private final PasswordEncoder passwordEncoder;
     private final EmailServiceI emailService;
 
+    @Value("${app.mail.enabled:false}")
+    private boolean mailEnabled;
     @Value("${app.auth.failed-attempt-window-minutes:10}")
     private long ventanaIntentosMinutos;
     @Value("${app.auth.lock-minutes:15}")
@@ -132,6 +135,9 @@ public class AutenticacionService implements AutenticacionServiceI {
     @Override
     @Transactional
     public void solicitarRestablecimiento(SolicitarRestablecimientoPasswordDTO request) {
+        if (!mailEnabled) {
+            throw new EntregaCorreoException();
+        }
         usuarioRepository.findByEmail(request.email()).ifPresent(usuario -> {
             resetRepository.deleteByUsuarioId(usuario.getId());
             String token = generarToken();

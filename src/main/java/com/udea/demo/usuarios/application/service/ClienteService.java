@@ -18,22 +18,10 @@ import com.udea.demo.usuarios.domain.model.EstadoUsuario;
 import com.udea.demo.usuarios.domain.model.Rol;
 import com.udea.demo.usuarios.domain.model.TokenVerificacion;
 import com.udea.demo.usuarios.domain.model.Usuario;
-<<<<<<< HEAD:src/main/java/com/udea/demo/usuarios/application/service/UsuarioService.java
-import com.udea.demo.usuarios.infrastructure.persistence.TokenVerificacionRepository;
-import com.udea.demo.usuarios.infrastructure.persistence.UsuarioRepository;
-=======
 import com.udea.demo.usuarios.interfaces.persistence.ClienteRepository;
 import com.udea.demo.usuarios.interfaces.persistence.TokenVerificacionRepository;
 import com.udea.demo.usuarios.interfaces.persistence.UsuarioRepository;
 import com.udea.demo.usuarios.interfaces.services.ClienteServiceI;
-
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
->>>>>>> origin/main:src/main/java/com/udea/demo/usuarios/application/service/ClienteService.java
 
 @Service
 public class ClienteService implements ClienteServiceI {
@@ -50,13 +38,10 @@ public class ClienteService implements ClienteServiceI {
                           PasswordEncoder passwordEncoder,
                           JavaMailSender mailSender) {
         this.usuarioRepository = usuarioRepository;
+        this.clienteRepository = clienteRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
-<<<<<<< HEAD:src/main/java/com/udea/demo/usuarios/application/service/UsuarioService.java
         this.mailSender = mailSender;
-=======
-        this.clienteRepository = clienteRepository;
->>>>>>> origin/main:src/main/java/com/udea/demo/usuarios/application/service/ClienteService.java
     }
 
     @Override 
@@ -87,9 +72,9 @@ public class ClienteService implements ClienteServiceI {
         Usuario guardado = usuarioRepository.save(usuario);
 
         Cliente cliente = Cliente.builder()
-        .usuario(guardado)
-        .ciudad(dto.ciudad())
-        .build();
+                .usuario(guardado)
+                .ciudad(dto.ciudad())
+                .build();
         clienteRepository.save(cliente);
 
         String tokenUUID = UUID.randomUUID().toString();
@@ -101,15 +86,13 @@ public class ClienteService implements ClienteServiceI {
 
         tokenRepository.save(tokenVerificacion);
 
-        // Envío automático de correo con el token de activación
         enviarCorreoVerificacion(guardado.getEmail(), guardado.getNombre(), tokenUUID);
 
         return mapToClienteResponseDTO(cliente);
     }
-<<<<<<< HEAD:src/main/java/com/udea/demo/usuarios/application/service/UsuarioService.java
 
     private void enviarCorreoVerificacion(String emailDestino, String nombreUsuario, String token) {
-        String urlVerificacion = "http://localhost:8080/api/v1/usuarios/verificar?token=" + token;
+        String urlVerificacion = "https://tracking-logistico-backend.onrender.com/api/v1/clientes/verificar?token=" + token;
 
         SimpleMailMessage mensaje = new SimpleMailMessage();
         mensaje.setTo(emailDestino);
@@ -122,9 +105,7 @@ public class ClienteService implements ClienteServiceI {
         mailSender.send(mensaje);
     }
 
-=======
     @Override 
->>>>>>> origin/main:src/main/java/com/udea/demo/usuarios/application/service/ClienteService.java
     @Transactional
     public void verificarCuenta(String token) {
         TokenVerificacion tokenVerificacion = tokenRepository.findByToken(token)
@@ -140,6 +121,7 @@ public class ClienteService implements ClienteServiceI {
 
         tokenRepository.delete(tokenVerificacion);
     }
+
     @Override 
     @Transactional
     public UsuarioResponseDTO actualizarPerfil(Long id, ActualizarPerfilRequestDTO dto) {
@@ -154,6 +136,7 @@ public class ClienteService implements ClienteServiceI {
 
         return mapToUsuarioDTO(actualizado);
     }
+
     @Override
     @Transactional
     public void desactivarCuentaCliente(Long id) {
@@ -178,6 +161,7 @@ public class ClienteService implements ClienteServiceI {
                 c.getUsuario().getFechaCreacion()
         );
     }
+
     private UsuarioResponseDTO mapToUsuarioDTO(Usuario u) {
         return new UsuarioResponseDTO(
                 u.getId(), u.getNombre(), u.getEmail(),

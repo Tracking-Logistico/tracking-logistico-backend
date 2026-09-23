@@ -25,12 +25,10 @@ WORKDIR /app
 # No incorporar claves SMTP/API o contrasenas reales en una imagen publica.
 ENV SPRING_PROFILE=postgres \
     DB_PORT=5432 \
-    DB_NAME=logistica_db \
-    DB_USER=logistica_user \
-    MAIL_PROVIDER=smtp \
-    MAIL_HOST=smtp.gmail.com \
-    MAIL_PORT=587 \
-    MAIL_USERNAME=logistrack01@gmail.com
+    DB_NAME=tracking_psep \
+    DB_USER=tracking_psep_user \
+    MAIL_PROVIDER=resend \
+    MAIL_LOG_ACTION_LINKS=false
 
 # Copiamos únicamente el .jar generado desde la etapa de construcción
 COPY --from=build /app/target/*.jar app.jar

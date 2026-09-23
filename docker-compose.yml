@@ -1,21 +1,27 @@
-# Desarrollo/local: Compose levanta PostgreSQL junto al backend.
-# Render despliega el Dockerfile, NO este Compose.
+# Levantar desde la carpeta del backend con ambas carpetas de proyecto al mismo nivel.
+# Valores locales predefinidos: no hace falta copiar ningún .env para Docker.
 services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: logistica_db
-      POSTGRES_USER: logistica_user
-      POSTGRES_PASSWORD: logistica_pass
+      POSTGRES_DB: tracking_psep
+      POSTGRES_USER: tracking_psep_user
+      POSTGRES_PASSWORD: T0Yq9eevXY4A6rWDOIV2MatsKadO9xs7
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 15
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
 
   backend:
     build: .
@@ -26,24 +32,39 @@ services:
       PORT: 8080
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: logistica_db
-      DB_USER: logistica_user
-      DB_PASSWORD: logistica_pass
+      DB_NAME: tracking_psep
+      DB_USER: tracking_psep_user
+      DB_PASSWORD: T0Yq9eevXY4A6rWDOIV2MatsKadO9xs7
       CORS_ALLOWED_ORIGIN: http://localhost:5173
-      APP_VERIFICATION_URL: http://localhost:8080/api/v1/clientes/verificar
+      APP_VERIFICATION_URL: http://localhost:5173/verificar
       AUTH_PASSWORD_RESET_URL: http://localhost:5173/restablecer-password
-      # Gmail SMTP solo para uso local/redes que permitan el puerto 587.
-      # La antigua clave Gmail expuesta no se vuelve a escribir en el proyecto.
-      MAIL_ENABLED: "false"
+      SWAGGER_ENABLED: "true"
+      DBA_API_KEY: dev-dba-key
+      MAIL_ENABLED: "true"
+      MAIL_LOG_ACTION_LINKS: "true" # SOLO LOCAL; desactivar en Render (credenciales de un solo uso)
       MAIL_PROVIDER: smtp
-      MAIL_FROM: logistrack01@gmail.com
-      MAIL_HOST: smtp.gmail.com
-      MAIL_PORT: 587
-      MAIL_USERNAME: logistrack01@gmail.com
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: no-reply@logistrack.local
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_SMTP_AUTH: "false"
+      MAIL_SMTP_STARTTLS: "false"
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../tracking-logistico-frontend-main
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8080/api/v1
+    depends_on:
+      - backend
     restart: unless-stopped
 
 volumes:

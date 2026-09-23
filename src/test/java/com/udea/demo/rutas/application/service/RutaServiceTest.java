@@ -25,6 +25,7 @@ import com.udea.demo.usuarios.interfaces.persistence.ConductorRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -66,8 +67,15 @@ class RutaServiceTest {
     @Mock private GestorRutaActiva gestorRutaActiva;
     @Mock private PedidoServiceI pedidoServiceI;
     @Mock private ConductorRepository conductorRepository;
+    @Mock private RegistroAsignacionService registroAsignacionService;
 
     @InjectMocks private RutaService rutaService;
+
+    @BeforeEach
+    void pedidosParaPruebas() {
+        org.mockito.Mockito.lenient().when(pedidoServiceI.obtener(any(Long.class)))
+            .thenAnswer(inv -> pedidoDTOEnTransito(inv.getArgument(0)));
+    }
 
     // ─── IDs de usuario (externos al módulo) y de conductor (internos) ──────
     private static final Long USUARIO_ID_CONDUCTOR = 5L;
@@ -114,6 +122,15 @@ class RutaServiceTest {
                 EstadoPedido.EN_TRANSITO,
                 null, 1L, LocalDateTime.now(), LocalDateTime.now(),
                 "TRK-001", LocalDateTime.now(), false, null);
+    }
+
+    private PedidoResponseDTO pedidoDTOReparto(Long id) {
+        PedidoResponseDTO p = pedidoDTOEnTransito(id);
+        return new PedidoResponseDTO(p.id(), p.numeroPedido(), p.clienteId(), p.direccionOrigen(),
+            p.direccionDestino(), p.descripcionPaquete(), p.pesoKg(), p.largoCm(), p.anchoCm(), p.altoCm(),
+            p.tipoServicio(), p.prioridadSugerida(), p.prioridadConfirmada(), EstadoPedido.EN_REPARTO,
+            p.observacionesValidacion(), p.operadorValidadorId(), p.fechaCreacion(), p.fechaValidacion(),
+            p.numeroTracking(), p.fechaActivacionTracking(), p.etiquetaImpresa(), p.fechaImpresionEtiqueta());
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -202,10 +219,10 @@ class RutaServiceTest {
 
             when(paradaRutaRepository.findByPedidoIdAndEstado(PEDIDO_ID, EstadoParada.PENDIENTE))
                     .thenReturn(Optional.empty()); // no está asignado aún
-            when(conductorRepository.findByUsuarioId(USUARIO_ID_CONDUCTOR))
+            when(conductorRepository.findByUsuarioIdForUpdate(USUARIO_ID_CONDUCTOR))
                     .thenReturn(Optional.of(conductor));
             when(gestorRutaActiva.obtenerOCrear(CONDUCTOR_INTERNO_ID)).thenReturn(ruta);
-            when(rutaRepository.save(any(Ruta.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(rutaRepository.saveAndFlush(any(Ruta.class))).thenAnswer(inv -> inv.getArgument(0));
             when(conductorRepository.findById(CONDUCTOR_INTERNO_ID))
                     .thenReturn(Optional.of(conductor));
 
@@ -219,7 +236,7 @@ class RutaServiceTest {
             // La ruta debe contener la parada del pedido asignado
             assertThat(resultado.paradas()).hasSize(1);
             assertThat(resultado.paradas().get(0).pedidoId()).isEqualTo(PEDIDO_ID);
-            verify(rutaRepository).save(any(Ruta.class));
+            verify(rutaRepository).saveAndFlush(any(Ruta.class));
         }
 
         /**
@@ -254,7 +271,7 @@ class RutaServiceTest {
 
             when(paradaRutaRepository.findByPedidoIdAndEstado(PEDIDO_ID, EstadoParada.PENDIENTE))
                     .thenReturn(Optional.empty());
-            when(conductorRepository.findByUsuarioId(USUARIO_ID_CONDUCTOR))
+            when(conductorRepository.findByUsuarioIdForUpdate(USUARIO_ID_CONDUCTOR))
                     .thenReturn(Optional.empty()); // no existe conductor para este usuario
 
             // Act & Assert
@@ -340,13 +357,15 @@ class RutaServiceTest {
 
             when(paradaRutaRepository.findByPedidoIdAndEstado(PEDIDO_ID, EstadoParada.PENDIENTE))
                     .thenReturn(Optional.of(paradaActual));
-            when(rutaRepository.save(rutaOrigen)).thenReturn(rutaOrigen);
-            when(conductorRepository.findByUsuarioId(USUARIO_ID_NUEVO))
+            when(rutaRepository.saveAndFlush(rutaOrigen)).thenReturn(rutaOrigen);
+            when(conductorRepository.findByUsuarioIdForUpdate(USUARIO_ID_NUEVO))
                     .thenReturn(Optional.of(conductorDestino));
             when(gestorRutaActiva.obtenerOCrear(CONDUCTOR_INTERNO_NUEVO)).thenReturn(rutaDestino);
-            when(rutaRepository.save(rutaDestino)).thenAnswer(inv -> inv.getArgument(0));
+            when(rutaRepository.saveAndFlush(rutaDestino)).thenAnswer(inv -> inv.getArgument(0));
             when(conductorRepository.findById(CONDUCTOR_INTERNO_NUEVO))
                     .thenReturn(Optional.of(conductorDestino));
+
+            when(pedidoServiceI.obtener(PEDIDO_ID)).thenReturn(pedidoDTOReparto(PEDIDO_ID));
 
             // Act
             RutaResponseDTO resultado = rutaService.reasignarEnvio(dto);
@@ -361,7 +380,7 @@ class RutaServiceTest {
             assertThat(paradaActual.getEstado()).isEqualTo(EstadoParada.CANCELADA);
 
             // Se persiste la ruta origen con la parada cancelada (historial)
-            verify(rutaRepository).save(rutaOrigen);
+            verify(rutaRepository).saveAndFlush(rutaOrigen);
         }
 
         /**
@@ -395,8 +414,7 @@ class RutaServiceTest {
 
             when(paradaRutaRepository.findByPedidoIdAndEstado(PEDIDO_ID, EstadoParada.PENDIENTE))
                     .thenReturn(Optional.of(paradaActual));
-            when(rutaRepository.save(rutaOrigen)).thenReturn(rutaOrigen);
-            when(conductorRepository.findByUsuarioId(USUARIO_ID_NUEVO))
+            when(conductorRepository.findByUsuarioIdForUpdate(USUARIO_ID_NUEVO))
                     .thenReturn(Optional.empty()); // el nuevo usuario no es conductor
 
             // Act & Assert
@@ -454,5 +472,16 @@ class RutaServiceTest {
             assertThatThrownBy(() -> rutaService.obtenerRutaActivaDeConductor(USUARIO_ID_CONDUCTOR))
                     .isInstanceOf(RutaNoEncontradaException.class);
         }
+    }
+
+    @Test
+    @DisplayName("Asignación masiva exige identificadores distintos")
+    void loteNoAdmiteDuplicados() {
+        var dto = new com.udea.demo.rutas.application.dto.AsignacionMasivaRequestDTO(
+            USUARIO_ID_CONDUCTOR, java.util.List.of(PEDIDO_ID, PEDIDO_ID));
+        assertThatThrownBy(() -> rutaService.asignarVarios(dto))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("distintos");
+        org.mockito.Mockito.verifyNoInteractions(gestorRutaActiva);
     }
 }

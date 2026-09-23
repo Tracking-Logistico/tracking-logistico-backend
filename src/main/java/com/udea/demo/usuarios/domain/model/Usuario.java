@@ -44,6 +44,12 @@ public class Usuario {
     private String versionTerminos;
 
     @Builder.Default
+    @Column(nullable = false)
+    private Boolean aceptoPoliticaDatos = false;
+    private LocalDateTime fechaAceptacionPoliticaDatos;
+    private String versionPoliticaDatos;
+
+    @Builder.Default
     private Boolean activo = true;
 
     private LocalDateTime fechaCreacion;

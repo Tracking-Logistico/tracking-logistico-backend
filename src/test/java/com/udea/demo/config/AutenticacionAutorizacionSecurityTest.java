@@ -51,9 +51,10 @@ class AutenticacionAutorizacionSecurityTest {
 
         @Test
         @WithMockUser(username = "cliente@correo.com", roles = {"CLIENTE"})
-        @DisplayName("CLIENTE recibe HTTP 403 al intentar acceder a /api/v1/pedidos/**")
-        void clienteAccedeAPedidos_rechaza403() throws Exception {
-            mockMvc.perform(get("/api/v1/pedidos/1"))
+        @DisplayName("CLIENTE recibe HTTP 403 al intentar validar pedidos (solo OPERADOR)")
+        void clienteNoPuedeValidarPedidos() throws Exception {
+            mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/v1/pedidos/1/validar")
+                            .contentType(MediaType.APPLICATION_JSON).content("{}"))
                     .andExpect(status().isForbidden());
         }
 
@@ -106,6 +107,24 @@ class AutenticacionAutorizacionSecurityTest {
     @Nested
     @DisplayName("Rol CONDUCTOR - restricciones y rechazo HTTP 403")
     class RolConductorRestricciones {
+        @Test
+        @WithMockUser(username = "conductor@tracking.com", roles = {"CONDUCTOR"})
+        @DisplayName("CONDUCTOR no puede consultar por URL la ruta de otro conductor")
+        void conductorNoConsultaRutaPorUsuario() throws Exception {
+            mockMvc.perform(get("/api/v1/rutas/conductores/999"))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @WithMockUser(username = "conductor@tracking.com", roles = {"CONDUCTOR"})
+        @DisplayName("CONDUCTOR no puede asignarse envíos")
+        void conductorNoAsignaEnvios() throws Exception {
+            mockMvc.perform(post("/api/v1/rutas/asignaciones/lote")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"conductorId\":1,\"pedidoIds\":[2]}"))
+                    .andExpect(status().isForbidden());
+        }
+
 
         @Test
         @WithMockUser(username = "conductor@tracking.com", roles = {"CONDUCTOR"})
@@ -117,9 +136,9 @@ class AutenticacionAutorizacionSecurityTest {
 
         @Test
         @WithMockUser(username = "conductor@tracking.com", roles = {"CONDUCTOR"})
-        @DisplayName("CONDUCTOR recibe HTTP 403 al intentar acceder a /api/v1/pedidos/** reservado a operador")
+        @DisplayName("CONDUCTOR recibe HTTP 403 al intentar consultar bandeja de validación")
         void conductorAccedeAPedidos_rechaza403() throws Exception {
-            mockMvc.perform(get("/api/v1/pedidos/1"))
+            mockMvc.perform(get("/api/v1/pedidos/pendientes"))
                     .andExpect(status().isForbidden());
         }
 

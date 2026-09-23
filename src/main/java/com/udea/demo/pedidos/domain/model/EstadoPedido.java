@@ -1,19 +1,24 @@
 package com.udea.demo.pedidos.domain.model;
 
 public enum EstadoPedido {
+    SOLICITADO,
+    CORRECCION_SOLICITADA,
+    CREADO,
+    RECIBIDO_EN_ORIGEN,
+    EN_TRANSITO,
+    EN_REPARTO,
+    ENTREGADO,
+    RECHAZADO,
+    // Estados heredados mantenidos solo para compatibilidad de datos/migraciones previas.
     RECIBIDO,
     EN_VALIDACION,
-    VALIDADO,
-    RECHAZADO,
-    EN_TRANSITO;
+    VALIDADO;
 
-    // Guarda del ciclo de vida del pedido (patrón State vía enum)
-    public boolean puedeTransicionarA(EstadoPedido destino) {
-        return switch (this) {
-            case RECIBIDO -> destino == EN_VALIDACION || destino == VALIDADO || destino == RECHAZADO;
-            case EN_VALIDACION -> destino == VALIDADO || destino == RECHAZADO;
-            case VALIDADO -> destino == EN_TRANSITO;
-            case RECHAZADO, EN_TRANSITO -> false;
-        };
+    public boolean puedeValidarse() {
+        return this == SOLICITADO || this == CORRECCION_SOLICITADA || this == RECIBIDO || this == EN_VALIDACION;
+    }
+
+    public boolean puedeActivarTracking() {
+        return this == SOLICITADO || this == VALIDADO;
     }
 }

@@ -51,6 +51,9 @@ class UsuarioInternoServiceTest {
     @Mock private OperadorRepository operadorRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private PasswordTemporalService passwordTemporalService;
+    @Mock private ActorAuthorizationService actorAuthorizationService;
+    @Mock private PasswordPolicyService passwordPolicyService;
+    @Mock private com.udea.demo.usuarios.interfaces.persistence.SesionUsuarioRepository sesionRepository;
 
     @InjectMocks private UsuarioInternoService usuarioInternoService;
 

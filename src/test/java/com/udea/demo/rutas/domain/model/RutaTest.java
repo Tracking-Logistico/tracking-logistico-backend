@@ -349,4 +349,19 @@ class RutaTest {
                     .isInstanceOf(EnvioNoAsignadoException.class);
         }
     }
+
+    @Test
+    @DisplayName("La ordenación manual sigue vigente al agregar otra entrega")
+    void respetaOrdenManualConNuevaParada() {
+        Ruta ruta = Ruta.crear(5L, LocalDate.now());
+        ruta.agregarParada(10L);
+        ruta.agregarParada(20L);
+        ruta.reordenar(java.util.List.of(20L, 10L));
+        ruta.agregarParada(30L);
+        assertThat(ruta.isOrdenManual()).isTrue();
+        assertThat(ruta.getParadas().stream()
+            .filter(p -> p.getEstado() == EstadoParada.PENDIENTE)
+            .sorted(java.util.Comparator.comparing(ParadaRuta::getOrden))
+            .map(ParadaRuta::getPedidoId).toList()).containsExactly(20L, 10L, 30L);
+    }
 }

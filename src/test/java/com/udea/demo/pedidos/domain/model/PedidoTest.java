@@ -2,14 +2,12 @@ package com.udea.demo.pedidos.domain.model;
 
 import com.udea.demo.pedidos.domain.exception.TrackingNoActivoException;
 import com.udea.demo.pedidos.domain.exception.TransicionEstadoInvalidaException;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.jupiter.api.Disabled;
 /**
  * Pruebas unitarias del dominio del pedido.
  *
@@ -17,8 +15,8 @@ import org.junit.jupiter.api.Disabled;
  * feliz y el camino de error. Patrón AAA (Arrange - Act - Assert) con secciones marcadas.
  *
  * CP cubiertos:
- *  - CP-HU03A-01: recepción con identificador único (estado inicial RECIBIDO, datos conservados).
- *  - CP-HU03A-02: validación (transición a VALIDADO / error de transición).
+ *  - CP-HU03A-01: recepción con identificador único (estado inicial SOLICITADO, datos conservados).
+ *  - CP-HU03A-02: validación (transición a SOLICITADO / error de transición).
  *  - CP-HU03A-03: prioridad confirmada vs. sugerida.
  *  - CP-HU03B-01: activación de tracking + idempotencia.
  *  - CP-HU03B-02: impresión de etiqueta exige tracking activo.
@@ -34,25 +32,25 @@ class PedidoTest {
     private Pedido pedidoRecibido() {
         return Pedido.recibir(
                 CLIENTE_ID,
-                "Carrera 7 #71-21, Bogotá",
-                "Calle 45 #12-30, Bogotá",
+                "Carrera 7 #71-21, Bogotá", "Bogotá", "110111",
+                "Calle 45 #12-30, Bogotá", "Bogotá", "110111",
                 "Caja frágil",
                 2.50, 30.0, 20.0, 15.0,
                 TipoServicio.EXPRESS,
                 NUMERO_PEDIDO,
-                Prioridad.URGENTE
+                Prioridad.ALTA, "Destinatario", "+573001234567", "Cliente", "cliente@test.com", "+573109876543"
         );
     }
 
     /** CP-HU03A-01: camino feliz. */
     @Test
-    @DisplayName("CP-HU03A-01: recibir() deja el pedido en RECIBIDO conservando los datos")
+    @DisplayName("CP-HU03A-01: recibir() deja el pedido en SOLICITADO conservando los datos")
     void recibir_feliz() {
         // Act
         Pedido pedido = pedidoRecibido();
 
         // Assert
-        assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.RECIBIDO);
+        assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.SOLICITADO);
         assertThat(pedido.getNumeroPedido()).isEqualTo(NUMERO_PEDIDO);
         assertThat(pedido.getDireccionDestino()).isEqualTo("Calle 45 #12-30, Bogotá");
         assertThat(pedido.getPesoKg()).isEqualTo(2.50);
@@ -65,7 +63,7 @@ class PedidoTest {
 
         /** CP-HU03A-02: camino feliz. */
         @Test
-        @DisplayName("validar() aprobado transiciona a VALIDADO y registra el operador")
+        @DisplayName("validar() aprobado transiciona a SOLICITADO y registra el operador")
         void validar_feliz() {
             // Arrange
             Pedido pedido = pedidoRecibido();
@@ -74,7 +72,7 @@ class PedidoTest {
             pedido.validar(true, null, "Datos correctos", OPERADOR_ID);
 
             // Assert
-            assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.VALIDADO);
+            assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.SOLICITADO);
             assertThat(pedido.getOperadorValidadorId()).isEqualTo(OPERADOR_ID);
             assertThat(pedido.getFechaValidacion()).isNotNull();
         }
@@ -85,7 +83,7 @@ class PedidoTest {
         void validar_error() {
             // Arrange
             Pedido pedido = pedidoRecibido();
-            pedido.validar(true, null, null, OPERADOR_ID); // pasa a VALIDADO
+            pedido.validar(true, null, null, OPERADOR_ID); // pasa a SOLICITADO
 
             // Act & Assert
             assertThatThrownBy(() -> pedido.validar(true, null, null, OPERADOR_ID))
@@ -106,7 +104,7 @@ class PedidoTest {
         conAjuste.validar(true, Prioridad.ALTA, null, OPERADOR_ID);
 
         // Assert
-        assertThat(sinAjuste.getPrioridadConfirmada()).isEqualTo(Prioridad.URGENTE);
+        assertThat(sinAjuste.getPrioridadConfirmada()).isEqualTo(Prioridad.ALTA);
         assertThat(conAjuste.getPrioridadConfirmada()).isEqualTo(Prioridad.ALTA);
     }
 
@@ -116,7 +114,7 @@ class PedidoTest {
 
         /** CP-HU03B-01: camino feliz. */
         @Test
-        @DisplayName("activarTracking() sobre un pedido VALIDADO pasa a EN_TRANSITO y setea el tracking")
+        @DisplayName("activarTracking() sobre un pedido SOLICITADO pasa a CREADO y setea el tracking")
         void activarTracking_feliz() {
             // Arrange
             Pedido pedido = pedidoRecibido();
@@ -126,11 +124,10 @@ class PedidoTest {
             pedido.activarTracking(NUMERO_TRACKING);
 
             // Assert
-            assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.EN_TRANSITO);
+            assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.CREADO);
             assertThat(pedido.getNumeroTracking()).isEqualTo(NUMERO_TRACKING);
         }
 
-        @Disabled("BUG CP-HU03B-01: idempotencia de activarTracking pendiente. Ver HU03-B.")
         @Test
         @DisplayName("BUG CP-HU03B-01: la segunda activación debería ser idempotente")
         void activarTracking_error_idempotencia() {
@@ -144,7 +141,7 @@ class PedidoTest {
 
             // Assert
             assertThat(pedido.getNumeroTracking()).isEqualTo(NUMERO_TRACKING);
-            assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.EN_TRANSITO);
+            assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.CREADO);
         }
     }
 
@@ -159,4 +156,25 @@ class PedidoTest {
         assertThatThrownBy(pedido::confirmarImpresionEtiqueta)
                 .isInstanceOf(TrackingNoActivoException.class);
     }
+    @Test
+    @DisplayName("El despacho permite avanzar de creado a recibido en origen y después a tránsito")
+    void puedeAvanzarHastaTransito() {
+        Pedido pedido = pedidoRecibido();
+        pedido.validar(true, null, null, OPERADOR_ID);
+        pedido.activarTracking(NUMERO_TRACKING);
+        pedido.cambiarEstadoLogistico(EstadoPedido.RECIBIDO_EN_ORIGEN);
+        assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.RECIBIDO_EN_ORIGEN);
+        pedido.cambiarEstadoLogistico(EstadoPedido.EN_TRANSITO);
+        assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.EN_TRANSITO);
+    }
+
+    @Test
+    @DisplayName("No es posible activar tracking antes de validar un pedido")
+    void noActivaTrackingDeSolicitudSinValidar() {
+        Pedido pedido = pedidoRecibido();
+        assertThatThrownBy(() -> pedido.activarTracking(NUMERO_TRACKING))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(pedido.getNumeroTracking()).isNull();
+    }
+
 }

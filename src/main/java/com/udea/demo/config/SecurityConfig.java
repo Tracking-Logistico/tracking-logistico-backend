@@ -16,9 +16,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig {
     private final SesionAuthenticationFilter sesionAuthenticationFilter;
+    private final DbaApiKeyAuthenticationFilter dbaApiKeyAuthenticationFilter;
 
-    public SecurityConfig(SesionAuthenticationFilter sesionAuthenticationFilter) {
+    public SecurityConfig(SesionAuthenticationFilter sesionAuthenticationFilter,
+                          DbaApiKeyAuthenticationFilter dbaApiKeyAuthenticationFilter) {
         this.sesionAuthenticationFilter = sesionAuthenticationFilter;
+        this.dbaApiKeyAuthenticationFilter = dbaApiKeyAuthenticationFilter;
     }
 
     @Bean
@@ -47,24 +50,40 @@ public class SecurityConfig {
                     response.setCharacterEncoding("UTF-8");
                     response.getWriter().write("{\"error\":\"No tienes permiso para realizar esta acción\"}");
                 }))
+            .addFilterBefore(dbaApiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(sesionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/error", "/api/v1/auth/login", "/api/v1/auth/refresh",
                                  "/api/v1/auth/password/**", "/api/v1/clientes/registro",
-                                 "/api/v1/clientes/verificar", "/h2-console/**",
+                                 "/api/v1/clientes/verificar", "/api/v1/clientes/verificacion/reenviar", "/h2-console/**",
                                  "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/api/v1/admin/**").hasRole("DBA")
                 .requestMatchers("/api/v1/auth/logout").authenticated()
-                .requestMatchers("/api/v1/pedidos/**").hasRole("OPERADOR")
-                .requestMatchers("/api/v1/rutas/envios-pendientes", "/api/v1/rutas/asignaciones",
-                                 "/api/v1/rutas/asignaciones/reasignar", "/api/v1/rutas/*/orden")
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos").hasRole("CLIENTE")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/mios").hasRole("CLIENTE")
+                .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/pedidos/*/corregir").hasRole("CLIENTE")
+                .requestMatchers("/api/v1/pedidos/pendientes", "/api/v1/pedidos/activables",
+                                 "/api/v1/pedidos/validados", "/api/v1/pedidos/transito", "/api/v1/pedidos/despachos",
+                                 "/api/v1/pedidos/*/validar", "/api/v1/pedidos/*/activar-tracking",
+                                 "/api/v1/pedidos/*/estado-logistico", "/api/v1/pedidos/*/etiqueta")
                     .hasRole("OPERADOR")
-                .requestMatchers("/api/v1/rutas/conductores/**").hasAnyRole("OPERADOR", "CONDUCTOR")
-                .requestMatchers("/api/v1/clientes/*/perfil", "/api/v1/clientes/*")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/**")
+                    .hasAnyRole("CLIENTE", "OPERADOR", "CONDUCTOR")
+                .requestMatchers("/api/v1/rutas/envios-pendientes", "/api/v1/rutas/asignaciones",
+                                 "/api/v1/rutas/asignaciones/reasignar", "/api/v1/rutas/asignaciones/lote",
+                                 "/api/v1/rutas/asignaciones/*/historial", "/api/v1/rutas/*/orden",
+                                 "/api/v1/rutas/conductores-disponibles")
+                    .hasRole("OPERADOR")
+                .requestMatchers("/api/v1/rutas/mi-ruta", "/api/v1/rutas/mis-notificaciones",
+                                 "/api/v1/rutas/mis-notificaciones/*/leer").hasRole("CONDUCTOR")
+                .requestMatchers("/api/v1/rutas/conductores/**").hasRole("OPERADOR")
+                .requestMatchers("/api/v1/clientes/me", "/api/v1/clientes/me/perfil",
+                                 "/api/v1/clientes/*/perfil", "/api/v1/clientes/*")
                     .hasRole("CLIENTE")
                 .requestMatchers("/api/v1/usuarios/*/password")
-                    .hasAnyRole("CLIENTE", "OPERADOR", "CONDUCTOR")
+                    .hasAnyRole("CLIENTE", "OPERADOR", "CONDUCTOR", "PASSWORD_CHANGE")
                 .requestMatchers("/api/v1/panel/cliente/**").hasRole("CLIENTE")
                 .requestMatchers("/api/v1/panel/operador/**").hasRole("OPERADOR")
                 .requestMatchers("/api/v1/panel/conductor/**").hasRole("CONDUCTOR")

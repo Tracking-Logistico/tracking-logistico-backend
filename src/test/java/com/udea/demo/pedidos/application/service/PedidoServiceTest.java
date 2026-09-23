@@ -12,7 +12,11 @@ import com.udea.demo.pedidos.domain.model.TipoServicio;
 import com.udea.demo.pedidos.domain.service.GeneradorEtiqueta;
 import com.udea.demo.pedidos.domain.service.PrioridadStrategy;
 import com.udea.demo.pedidos.interfaces.persistence.PedidoRepository;
-import org.junit.jupiter.api.Disabled;
+import com.udea.demo.pedidos.interfaces.persistence.HistorialPedidoRepository;
+import com.udea.demo.usuarios.application.service.ActorAuthorizationService;
+import com.udea.demo.usuarios.domain.model.Rol;
+import com.udea.demo.usuarios.domain.model.Usuario;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,7 +34,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.junit.jupiter.api.Disabled;
 
 /**
  * Pruebas unitarias del PedidoService (capa de aplicación) con colaboradores mockeados.
@@ -54,23 +57,38 @@ class PedidoServiceTest {
     @Mock private GeneradorNumeroPedido generadorNumeroPedido;
     @Mock private GeneradorNumeroTracking generadorNumeroTracking;
     @Mock private GeneradorEtiqueta generadorEtiqueta;
+    @Mock private ActorAuthorizationService actorAuthorizationService;
+    @Mock private HistorialPedidoRepository historialPedidoRepository;
+    @Mock private LimitesServicioService limitesServicioService;
+    @Mock private com.udea.demo.pedidos.interfaces.services.AccesoPedidoConductorI accesoConductor;
 
     @InjectMocks private PedidoService pedidoService;
 
     private static final String NUMERO_PEDIDO = "PED-20260214-8F4A29C1";
-    private static final String NUMERO_TRACKING = "TRK-20260214-8F4A29C1B7";
+    private static final String NUMERO_TRACKING = "LT1234567890";
+
+    @BeforeEach
+    void actorAutenticado() {
+        Usuario actor = Usuario.builder().id(1L).email("cliente@test.com").nombre("Cliente").rol(Rol.CLIENTE).activo(true).build();
+        org.mockito.Mockito.lenient().when(actorAuthorizationService.actorActual()).thenReturn(actor);
+        org.mockito.Mockito.lenient().when(actorAuthorizationService.clienteActualId()).thenReturn(10L);
+        org.mockito.Mockito.lenient().when(actorAuthorizationService.operadorActualId()).thenReturn(99L);
+    }
 
     private RecibirPedidoRequestDTO recibirRequest() {
         return new RecibirPedidoRequestDTO(
-                10L, "Carrera 7 #71-21, Bogotá", "Calle 45 #12-30, Bogotá",
-                "Caja frágil", 2.50, 30.0, 20.0, 15.0, TipoServicio.EXPRESS);
+                "Carrera 7 #71-21, Bogotá", "Bogotá", "110111",
+                "Calle 45 #12-30, Bogotá", "Bogotá", "110111", "Caja frágil",
+                2.50, 30.0, 20.0, 15.0, TipoServicio.EXPRESS,
+                "Destinatario", "+573001234567", "+573109876543");
     }
 
     private Pedido pedidoConId() {
         return Pedido.recibir(
-                10L, "Carrera 7 #71-21, Bogotá", "Calle 45 #12-30, Bogotá",
-                "Caja frágil", 2.50, 30.0, 20.0, 15.0,
-                TipoServicio.EXPRESS, NUMERO_PEDIDO, Prioridad.URGENTE);
+                10L, "Carrera 7 #71-21, Bogotá", "Bogotá", "110111",
+                "Calle 45 #12-30, Bogotá", "Bogotá", "110111", "Caja frágil",
+                2.50, 30.0, 20.0, 15.0, TipoServicio.EXPRESS, NUMERO_PEDIDO, Prioridad.ALTA,
+                "Destinatario", "+573001234567", "Cliente", "cliente@test.com", "+573109876543");
     }
 
     @Nested
@@ -79,11 +97,11 @@ class PedidoServiceTest {
 
         /** CP-HU03A-01: camino feliz. */
         @Test
-        @DisplayName("recibir() genera número único, sugiere prioridad y guarda en RECIBIDO")
+        @DisplayName("recibir() genera número único, sugiere prioridad y guarda en SOLICITADO")
         void recibir_feliz() {
             // Arrange
             RecibirPedidoRequestDTO dto = recibirRequest();
-            when(prioridadStrategy.sugerir(dto.tipoServicio(), dto.pesoKg())).thenReturn(Prioridad.URGENTE);
+            when(prioridadStrategy.sugerir(dto.tipoServicio(), dto.pesoKg())).thenReturn(Prioridad.ALTA);
             when(generadorNumeroPedido.generar()).thenReturn(NUMERO_PEDIDO);
             when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoConId());
 
@@ -92,7 +110,7 @@ class PedidoServiceTest {
 
             // Assert
             assertThat(respuesta.numeroPedido()).isEqualTo(NUMERO_PEDIDO);
-            assertThat(respuesta.estado()).isEqualTo(EstadoPedido.RECIBIDO);
+            assertThat(respuesta.estado()).isEqualTo(EstadoPedido.SOLICITADO);
             verify(pedidoRepository).save(any(Pedido.class));
         }
 
@@ -115,15 +133,15 @@ class PedidoServiceTest {
     void validar_feliz() {
         // Arrange
         Pedido pedido = pedidoConId();
-        ValidarPedidoRequestDTO dto = new ValidarPedidoRequestDTO(99L, true, null, "ok");
-        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+        ValidarPedidoRequestDTO dto = new ValidarPedidoRequestDTO(true, null, "ok", null, null, false);
+        when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
         PedidoResponseDTO respuesta = pedidoService.validar(1L, dto);
 
         // Assert
-        assertThat(respuesta.estado()).isEqualTo(EstadoPedido.VALIDADO);
+        assertThat(respuesta.estado()).isEqualTo(EstadoPedido.SOLICITADO);
         verify(pedidoRepository).save(pedido);
     }
 
@@ -133,8 +151,8 @@ class PedidoServiceTest {
     void validar_ajustePrioridad_feliz() {
         // Arrange
         Pedido pedido = pedidoConId();
-        ValidarPedidoRequestDTO dto = new ValidarPedidoRequestDTO(99L, true, Prioridad.ALTA, null);
-        when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+        ValidarPedidoRequestDTO dto = new ValidarPedidoRequestDTO(true, Prioridad.ALTA, null, null, null, false);
+        when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
@@ -150,12 +168,12 @@ class PedidoServiceTest {
 
         /** CP-HU03B-01: camino feliz. */
         @Test
-        @DisplayName("activarTracking() genera el tracking y pasa a EN_TRANSITO")
+        @DisplayName("activarTracking() genera el tracking y pasa a CREADO")
         void activarTracking_feliz() {
             // Arrange
             Pedido pedido = pedidoConId();
             pedido.validar(true, null, null, 99L);
-            when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+            when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
             when(generadorNumeroTracking.generar()).thenReturn(NUMERO_TRACKING);
             when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -163,18 +181,17 @@ class PedidoServiceTest {
             PedidoResponseDTO respuesta = pedidoService.activarTracking(1L);
 
             // Assert
-            assertThat(respuesta.estado()).isEqualTo(EstadoPedido.EN_TRANSITO);
+            assertThat(respuesta.estado()).isEqualTo(EstadoPedido.CREADO);
             assertThat(respuesta.numeroTracking()).isEqualTo(NUMERO_TRACKING);
         }
 
-        @Disabled("BUG CP-HU03B-01: idempotencia de activarTracking pendiente. Ver HU03-B.")
         @Test
         @DisplayName("BUG CP-HU03B-01: activar dos veces debería ser idempotente")
         void activarTracking_error_idempotencia() {
             // Arrange
             Pedido pedido = pedidoConId();
             pedido.validar(true, null, null, 99L);
-            when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+            when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
             when(generadorNumeroTracking.generar()).thenReturn(NUMERO_TRACKING);
             when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -199,7 +216,7 @@ class PedidoServiceTest {
             Pedido pedido = pedidoConId();
             pedido.validar(true, null, null, 99L);
             pedido.activarTracking(NUMERO_TRACKING);
-            when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+            when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
             when(generadorEtiqueta.generar(pedido)).thenReturn("CONTENIDO-ETIQUETA");
 
             // Act
@@ -215,8 +232,8 @@ class PedidoServiceTest {
         @DisplayName("generarEtiqueta() sin tracking activo lanza TrackingNoActivoException")
         void generarEtiqueta_error() {
             // Arrange
-            Pedido pedido = pedidoConId(); // RECIBIDO, sin tracking
-            when(pedidoRepository.findById(1L)).thenReturn(Optional.of(pedido));
+            Pedido pedido = pedidoConId(); // SOLICITADO, sin tracking
+            when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
 
             // Act & Assert
             assertThatThrownBy(() -> pedidoService.generarEtiqueta(1L))
@@ -224,4 +241,38 @@ class PedidoServiceTest {
             verify(generadorEtiqueta, never()).generar(any());
         }
     }
+
+    @Test
+    @DisplayName("Un conductor no accede al envío de otro aunque conozca su ID")
+    void conductorNoPuedeLeerPedidoAjeno() {
+        Usuario conductor = Usuario.builder().id(77L).email("chofer@ejemplo.com")
+                .rol(Rol.CONDUCTOR).activo(true).build();
+        when(actorAuthorizationService.actorActual()).thenReturn(conductor);
+        Pedido pedido = pedidoConId();
+        org.springframework.test.util.ReflectionTestUtils.setField(pedido, "id", 10L);
+        when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
+        assertThatThrownBy(() -> pedidoService.obtener(10L))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        verify(accesoConductor).tieneAsignacionActiva(10L, 77L);
+    }
+    @Test
+    @DisplayName("Despachos incluye los validados, creados y recibidos en origen sin mostrar solicitudes sin revisar")
+    void listarDespachos_incluyeTodasLasEtapasDeDespacho() {
+        Pedido pendiente = pedidoConId();
+        Pedido validado = pedidoConId();
+        validado.validar(true, null, null, 99L);
+        Pedido recibidoEnOrigen = pedidoConId();
+        recibidoEnOrigen.validar(true, null, null, 99L);
+        recibidoEnOrigen.activarTracking(NUMERO_TRACKING);
+        recibidoEnOrigen.cambiarEstadoLogistico(EstadoPedido.RECIBIDO_EN_ORIGEN);
+        when(pedidoRepository.findByEstadoInOrderByFechaCreacionAsc(any())).thenReturn(
+                java.util.List.of(pendiente, validado, recibidoEnOrigen));
+
+        var resultado = pedidoService.listarDespachos();
+
+        assertThat(resultado).hasSize(2);
+        assertThat(resultado).extracting(PedidoResponseDTO::estado)
+                .containsExactly(EstadoPedido.SOLICITADO, EstadoPedido.RECIBIDO_EN_ORIGEN);
+    }
+
 }

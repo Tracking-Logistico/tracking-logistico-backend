@@ -4,7 +4,6 @@ import com.udea.demo.usuarios.application.dto.ActualizarPerfilRequestDTO;
 import com.udea.demo.usuarios.application.dto.ClienteResponseDTO;
 import com.udea.demo.usuarios.application.dto.RegistroClienteRequestDTO;
 import com.udea.demo.usuarios.application.dto.UsuarioResponseDTO;
-import com.udea.demo.usuarios.interfaces.services.UsuarioInternoServiceI;
 import com.udea.demo.usuarios.interfaces.services.ClienteServiceI;
 
 import jakarta.validation.Valid;
@@ -19,7 +18,7 @@ public class ClienteController {
     private final ClienteServiceI clienteService;
     
 
-    public ClienteController(ClienteServiceI usuarioService, UsuarioInternoServiceI usuarioInternoService) {
+    public ClienteController(ClienteServiceI usuarioService) {
         this.clienteService = usuarioService;
     }
 
@@ -33,6 +32,29 @@ public class ClienteController {
     public ResponseEntity<String> verificarCuenta(@RequestParam String token) {
         clienteService.verificarCuenta(token);
         return ResponseEntity.ok("Cuenta verificada con éxito. Ya puedes iniciar sesión.");
+    }
+
+    @PostMapping("/verificacion/reenviar")
+    public ResponseEntity<String> reenviarVerificacion(@Valid @RequestBody
+            com.udea.demo.usuarios.application.dto.SolicitarRestablecimientoPasswordDTO dto) {
+        clienteService.reenviarVerificacion(dto.email());
+        return ResponseEntity.ok("Si existe una cuenta pendiente, recibirás un enlace de verificación.");
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ClienteResponseDTO> obtenerPerfilActual() {
+        return ResponseEntity.ok(clienteService.obtenerPerfilActual());
+    }
+
+    @PutMapping("/me/perfil")
+    public ResponseEntity<UsuarioResponseDTO> actualizarPerfilActual(@Valid @RequestBody ActualizarPerfilRequestDTO dto) {
+        return ResponseEntity.ok(clienteService.actualizarPerfilActual(dto));
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> desactivarCuentaActual() {
+        clienteService.desactivarCuentaActual();
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}/perfil")

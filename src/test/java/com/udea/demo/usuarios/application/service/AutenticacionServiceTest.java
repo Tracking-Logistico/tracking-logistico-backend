@@ -60,6 +60,7 @@ class AutenticacionServiceTest {
     @Mock private TokenRestablecimientoPasswordRepository resetRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private EmailServiceI emailService;
+    @Mock private PasswordPolicyService passwordPolicyService;
 
     @InjectMocks private AutenticacionService autenticacionService;
 

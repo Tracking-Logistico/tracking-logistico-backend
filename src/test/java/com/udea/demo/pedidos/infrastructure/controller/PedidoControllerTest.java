@@ -61,9 +61,9 @@ class PedidoControllerTest {
                 PEDIDO_ID, NUMERO_PEDIDO, 10L,
                 "Carrera 7 #71-21, Bogotá", "Calle 45 #12-30, Bogotá",
                 "Caja frágil", 2.50, 30.0, 20.0, 15.0,
-                TipoServicio.EXPRESS, Prioridad.URGENTE, Prioridad.ALTA, estado,
+                TipoServicio.EXPRESS, Prioridad.ALTA, Prioridad.ALTA, estado,
                 null, 99L, LocalDateTime.now(), null,
-                estado == EstadoPedido.EN_TRANSITO ? NUMERO_TRACKING : null,
+                estado == EstadoPedido.CREADO ? NUMERO_TRACKING : null,
                 null, false, null);
     }
 
@@ -77,16 +77,18 @@ class PedidoControllerTest {
         void recibirPedido_feliz() {
             // Arrange
             RecibirPedidoRequestDTO dto = new RecibirPedidoRequestDTO(
-                    10L, "Carrera 7 #71-21, Bogotá", "Calle 45 #12-30, Bogotá",
-                    "Caja frágil", 2.50, 30.0, 20.0, 15.0, TipoServicio.EXPRESS);
-            when(pedidoService.recibir(dto)).thenReturn(pedidoDTO(EstadoPedido.RECIBIDO));
+                    "Carrera 7 #71-21, Bogotá", "Bogotá", "110111",
+                    "Calle 45 #12-30, Bogotá", "Bogotá", "110111", "Caja frágil",
+                    2.50, 30.0, 20.0, 15.0, TipoServicio.EXPRESS,
+                    "Destinatario", "+573001234567", "+573109876543");
+            when(pedidoService.recibir(dto)).thenReturn(pedidoDTO(EstadoPedido.SOLICITADO));
 
             // Act
             ResponseEntity<PedidoResponseDTO> respuesta = pedidoController.recibirPedido(dto);
 
             // Assert
             assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-            assertThat(respuesta.getBody().estado()).isEqualTo(EstadoPedido.RECIBIDO);
+            assertThat(respuesta.getBody().estado()).isEqualTo(EstadoPedido.SOLICITADO);
         }
 
         /** CP-HU03A-01: camino de error (propaga la excepción del servicio). */
@@ -108,16 +110,16 @@ class PedidoControllerTest {
     @DisplayName("CP-HU03A-02: validarPedido() devuelve 200 OK con el pedido validado")
     void validarPedido_feliz() {
         // Arrange
-        ValidarPedidoRequestDTO dto = new ValidarPedidoRequestDTO(99L, true, null, "ok");
+        ValidarPedidoRequestDTO dto = new ValidarPedidoRequestDTO(true, null, "ok", null, null, false);
         when(pedidoService.validar(eq(PEDIDO_ID), any(ValidarPedidoRequestDTO.class)))
-                .thenReturn(pedidoDTO(EstadoPedido.VALIDADO));
+                .thenReturn(pedidoDTO(EstadoPedido.SOLICITADO));
 
         // Act
         ResponseEntity<PedidoResponseDTO> respuesta = pedidoController.validarPedido(PEDIDO_ID, dto);
 
         // Assert
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(respuesta.getBody().estado()).isEqualTo(EstadoPedido.VALIDADO);
+        assertThat(respuesta.getBody().estado()).isEqualTo(EstadoPedido.SOLICITADO);
     }
 
     /** CP-HU03A-03: camino feliz (ajuste de prioridad). */
@@ -125,9 +127,9 @@ class PedidoControllerTest {
     @DisplayName("CP-HU03A-03: validarPedido() refleja la prioridad confirmada")
     void validarPedido_prioridad_feliz() {
         // Arrange
-        ValidarPedidoRequestDTO dto = new ValidarPedidoRequestDTO(99L, true, Prioridad.ALTA, null);
+        ValidarPedidoRequestDTO dto = new ValidarPedidoRequestDTO(true, Prioridad.ALTA, null, null, null, false);
         when(pedidoService.validar(eq(PEDIDO_ID), any(ValidarPedidoRequestDTO.class)))
-                .thenReturn(pedidoDTO(EstadoPedido.VALIDADO));
+                .thenReturn(pedidoDTO(EstadoPedido.SOLICITADO));
 
         // Act
         ResponseEntity<PedidoResponseDTO> respuesta = pedidoController.validarPedido(PEDIDO_ID, dto);
@@ -141,7 +143,7 @@ class PedidoControllerTest {
     @DisplayName("CP-HU03B-01: activarTracking() devuelve 200 OK con el tracking generado")
     void activarTracking_feliz() {
         // Arrange
-        when(pedidoService.activarTracking(PEDIDO_ID)).thenReturn(pedidoDTO(EstadoPedido.EN_TRANSITO));
+        when(pedidoService.activarTracking(PEDIDO_ID)).thenReturn(pedidoDTO(EstadoPedido.CREADO));
 
         // Act
         ResponseEntity<PedidoResponseDTO> respuesta = pedidoController.activarTracking(PEDIDO_ID);

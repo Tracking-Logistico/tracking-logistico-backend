@@ -2,13 +2,16 @@ package com.udea.demo.rutas.infrastructure.controller;
 
 import com.udea.demo.pedidos.application.dto.PedidoResponseDTO;
 import com.udea.demo.rutas.application.dto.AsignarEnvioRequestDTO;
+import com.udea.demo.rutas.application.dto.AsignacionMasivaRequestDTO;
+import com.udea.demo.rutas.application.dto.NotificacionRutaDTO;
+import com.udea.demo.rutas.application.dto.HistorialAsignacionDTO;
+import com.udea.demo.rutas.application.service.RegistroAsignacionService;
 import com.udea.demo.rutas.application.dto.ReasignarEnvioRequestDTO;
 import com.udea.demo.rutas.application.dto.ReordenarRutaRequestDTO;
 import com.udea.demo.rutas.application.dto.RutaResponseDTO;
+import com.udea.demo.rutas.application.dto.ConductorDisponibleDTO;
 import com.udea.demo.rutas.interfaces.services.RutaServiceI;
 import com.udea.demo.usuarios.application.service.ActorAuthorizationService;
-import com.udea.demo.usuarios.domain.model.Rol;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -23,10 +26,12 @@ public class RutaController {
 
     private final RutaServiceI rutaService;
     private final ActorAuthorizationService actorAuthorizationService;
+    private final RegistroAsignacionService registro;
 
-    public RutaController(RutaServiceI rutaService, ActorAuthorizationService actorAuthorizationService) {
+    public RutaController(RutaServiceI rutaService, ActorAuthorizationService actorAuthorizationService, RegistroAsignacionService registro) {
         this.rutaService = rutaService;
         this.actorAuthorizationService = actorAuthorizationService;
+        this.registro = registro;
     }
 
     // Criterio 1: Visualización de envíos pendientes de asignación
@@ -35,19 +40,48 @@ public class RutaController {
         return ResponseEntity.ok(rutaService.listarEnviosPendientesDeAsignacion());
     }
 
+    @GetMapping("/conductores-disponibles")
+    public ResponseEntity<List<ConductorDisponibleDTO>> listarConductoresDisponibles() {
+        return ResponseEntity.ok(rutaService.listarConductoresDisponibles());
+    }
+
     // Criterio 2: Asignación de envíos a un conductor
     @PostMapping("/asignaciones")
     public ResponseEntity<RutaResponseDTO> asignarEnvio(@Valid @RequestBody AsignarEnvioRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(rutaService.asignarEnvio(dto));
     }
 
+    @PostMapping("/asignaciones/lote")
+    public ResponseEntity<RutaResponseDTO> asignarVarios(@Valid @RequestBody AsignacionMasivaRequestDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(rutaService.asignarVarios(dto));
+    }
+
+    @GetMapping("/mi-ruta")
+    public ResponseEntity<RutaResponseDTO> miRuta() {
+        Long usuarioId = actorAuthorizationService.actorActual().getId();
+        actorAuthorizationService.conductorActualId();
+        return ResponseEntity.ok(rutaService.obtenerRutaActivaDeConductor(usuarioId));
+    }
+
+    @GetMapping("/mis-notificaciones")
+    public ResponseEntity<List<NotificacionRutaDTO>> misNotificaciones() {
+        return ResponseEntity.ok(registro.misNotificaciones());
+    }
+
+    @PatchMapping("/mis-notificaciones/{id}/leer")
+    public ResponseEntity<Void> leer(@PathVariable Long id) {
+        registro.marcarLeida(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/asignaciones/{pedidoId}/historial")
+    public ResponseEntity<List<HistorialAsignacionDTO>> historialAsignaciones(@PathVariable Long pedidoId) {
+        return ResponseEntity.ok(registro.historial(pedidoId));
+    }
+
     // Consulta de apoyo para revisar la ruta antes de organizarla
     @GetMapping("/conductores/{conductorId}")
     public ResponseEntity<RutaResponseDTO> obtenerRutaDeConductor(@PathVariable Long conductorId) {
-        if (SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_CONDUCTOR".equals(authority.getAuthority()))) {
-            actorAuthorizationService.exigirPropietario(conductorId, Rol.CONDUCTOR);
-        }
         return ResponseEntity.ok(rutaService.obtenerRutaActivaDeConductor(conductorId));
     }
 

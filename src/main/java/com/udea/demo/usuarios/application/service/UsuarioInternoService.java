@@ -22,6 +22,7 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
     private final PasswordTemporalService passwordTemporalService;
     private final ActorAuthorizationService actorAuthorizationService;
     private final SesionUsuarioRepository sesionRepository;
+    private final PasswordPolicyService passwordPolicyService;
 
     public UsuarioInternoService(UsuarioRepository usuarioRepository,
                                  ConductorRepository conductorRepository,
@@ -29,7 +30,8 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
                                  PasswordEncoder passwordEncoder,
                                  PasswordTemporalService passwordTemporalService,
                                  ActorAuthorizationService actorAuthorizationService,
-                                 SesionUsuarioRepository sesionRepository) {
+                                 SesionUsuarioRepository sesionRepository,
+                                 PasswordPolicyService passwordPolicyService) {
         this.usuarioRepository = usuarioRepository;
         this.conductorRepository = conductorRepository;
         this.operadorRepository = operadorRepository;
@@ -37,6 +39,7 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         this.passwordTemporalService = passwordTemporalService;
         this.actorAuthorizationService = actorAuthorizationService;
         this.sesionRepository = sesionRepository;
+        this.passwordPolicyService = passwordPolicyService;
     }
 
     @Override
@@ -98,6 +101,9 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new UsuarioNoEncontradoException(id));
 
+        if (usuario.getRol() != Rol.OPERADOR && usuario.getRol() != Rol.CONDUCTOR) {
+            throw new RolInternoInvalidoException();
+        }
         if (command.nombre() != null) usuario.setNombre(command.nombre());
         if (command.telefono() != null) usuario.setTelefono(command.telefono());
         if (command.direccion() != null) usuario.setDireccion(command.direccion());
@@ -116,18 +122,21 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
                 throw new CodigoEmpleadoRequeridoException();
             }
 
-            // borrar fila del rol anterior
-            if (usuario.getRol() == Rol.CONDUCTOR) {
-                conductorRepository.deleteByUsuarioId(usuario.getId());
-            } else if (usuario.getRol() == Rol.OPERADOR) {
-                operadorRepository.deleteByUsuarioId(usuario.getId());
+            // Conservar filas históricas: rutas y pedidos previos pueden referenciarlas.
+            // Si la persona vuelve a su rol anterior, reutilizar su identidad operativa.
+            if (command.rol() == Rol.CONDUCTOR) {
+                conductorRepository.findByUsuarioId(usuario.getId()).ifPresentOrElse(
+                    c -> { c.setLicencia(command.licencia()); conductorRepository.save(c); },
+                    () -> crearFilaSegunRol(usuario, command.rol(), command.licencia(), null));
+            } else {
+                operadorRepository.findByUsuarioId(usuario.getId()).ifPresentOrElse(
+                    o -> { o.setCodigoEmpleado(command.codigoEmpleado()); operadorRepository.save(o); },
+                    () -> crearFilaSegunRol(usuario, command.rol(), null, command.codigoEmpleado()));
             }
 
-            // crear fila del nuevo rol
-            crearFilaSegunRol(usuario, command.rol(),
-                              command.licencia(), command.codigoEmpleado());
-
             usuario.setRol(command.rol());
+            // Tokens anteriores no deben heredar privilegios de otro rol.
+            sesionRepository.deleteByUsuarioId(usuario.getId());
         } else {
             // mismo rol: actualizar datos de la tabla específica si vienen
             if (usuario.getRol() == Rol.CONDUCTOR && command.licencia() != null) {
@@ -156,10 +165,14 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new UsuarioNoEncontradoException(id));
 
+        if (usuario.getRol() != Rol.OPERADOR && usuario.getRol() != Rol.CONDUCTOR) {
+            throw new RolInternoInvalidoException();
+        }
         usuario.setActivo(false);
         usuario.setEstado(EstadoUsuario.INACTIVO);
         usuarioRepository.save(usuario);
-        // no se borran conductor/operador: se conserva historial
+        // Se conservan entidades operativas para mantener historial y referencias de rutas.
+        sesionRepository.deleteByUsuarioId(usuario.getId());
     }
 
     @Override
@@ -176,6 +189,7 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         if (!nuevaPassword.equals(confirmarPassword)) {
             throw new PasswordNoCoincideException();
         }
+        passwordPolicyService.validar(nuevaPassword, usuario.getEmail(), usuario.getNombre());
 
         if (!Boolean.TRUE.equals(usuario.getActivo())) {
             throw new CuentaInactivaException();

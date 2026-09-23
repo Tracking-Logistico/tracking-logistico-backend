@@ -94,10 +94,7 @@ public class AutenticacionService implements AutenticacionServiceI {
         }
 
         Usuario usuario = usuarioRepository.findByEmail(request.email()).orElse(null);
-        boolean estadoLoginValido = usuario != null && (usuario.getEstado() == EstadoUsuario.ACTIVO
-                || usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION);
-        if (usuario == null || !estadoLoginValido
-                || !Boolean.TRUE.equals(usuario.getActivo())
+        if (usuario == null || !usuario.puedeAutenticarse()
                 || !passwordEncoder.matches(request.password(), usuario.getPassword())) {
             registrarFallo(request.email(), usuario, ahora, ip, userAgent);
             throw new CredencialesInvalidasException();
@@ -117,8 +114,7 @@ public class AutenticacionService implements AutenticacionServiceI {
                 ? minutosInactividadCliente : minutosInactividadOperativo;
         if (sesion.getRevokedAt() != null || sesion.getRefreshTokenExpiresAt().isBefore(ahora)
                 || !sesion.getLastActivityAt().plusMinutes(minutosInactividad).isAfter(ahora)
-                || !Boolean.TRUE.equals(sesion.getUsuario().getActivo())
-                || sesion.getUsuario().getEstado() != EstadoUsuario.ACTIVO) {
+                || !sesion.getUsuario().puedeAutenticarse()) {
             throw new SesionInvalidaException();
         }
         sesion.setRevokedAt(ahora);
@@ -145,7 +141,12 @@ public class AutenticacionService implements AutenticacionServiceI {
             String token = generarToken();
             resetRepository.save(new TokenRestablecimientoPassword(
                     hash(token), usuario, LocalDateTime.now().plusMinutes(minutosReset)));
+            try {
                 emailService.enviarEnlaceRestablecimiento(request.email(), passwordResetUrl + "/" + token);
+            } catch (RuntimeException ex) {
+                log.warn("MAIL_NO_ENTREGADO evento=RESTABLECIMIENTO destinatario={} causa={} resultado=PROCESO_CONTINUA",
+                        request.email(), ex.getClass().getSimpleName());
+            }
         });
     }
 
@@ -169,8 +170,8 @@ public class AutenticacionService implements AutenticacionServiceI {
             throw new TokenRestablecimientoInvalidoException();
         }
         usuario.setPassword(passwordEncoder.encode(request.nuevaPassword()));
-        // Internal users created by CLI can activate their account through the existing
-        // password recovery flow; unverified client accounts still require email verification.
+        // La activación inicial de personal interno sigue exigiendo cambiar su clave temporal.
+        // Un cliente puede recuperar su clave y usar la cuenta sin verificar el correo.
         if (usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION) {
             usuario.setEstado(EstadoUsuario.ACTIVO);
         }

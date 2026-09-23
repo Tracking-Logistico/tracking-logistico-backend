@@ -72,6 +72,15 @@ public class Usuario {
         this.fechaCreacion = fechaCreacion;
     }
 
+    // La verificación del correo del cliente es informativa, no un requisito para usar la cuenta.
+    // La activación de usuarios internos conserva su flujo de cambio de contraseña inicial.
+    public boolean puedeAutenticarse() {
+        return Boolean.TRUE.equals(activo)
+                && (estado == EstadoUsuario.ACTIVO
+                    || estado == EstadoUsuario.PENDIENTE_ACTIVACION
+                    || (rol == Rol.CLIENTE && estado == EstadoUsuario.PENDIENTE_VERIFICACION));
+    }
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getNombre() { return nombre; }

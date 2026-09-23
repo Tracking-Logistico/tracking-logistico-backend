@@ -31,14 +31,14 @@ public class ClienteController {
     @GetMapping("/verificar")
     public ResponseEntity<String> verificarCuenta(@RequestParam String token) {
         clienteService.verificarCuenta(token);
-        return ResponseEntity.ok("Cuenta verificada con éxito. Ya puedes iniciar sesión.");
+        return ResponseEntity.ok("Correo verificado con éxito. Puedes seguir utilizando tu cuenta.");
     }
 
     @PostMapping("/verificacion/reenviar")
     public ResponseEntity<String> reenviarVerificacion(@Valid @RequestBody
             com.udea.demo.usuarios.application.dto.SolicitarRestablecimientoPasswordDTO dto) {
         clienteService.reenviarVerificacion(dto.email());
-        return ResponseEntity.ok("Si existe una cuenta pendiente, recibirás un enlace de verificación.");
+        return ResponseEntity.ok("Si existe una cuenta pendiente, intentaremos enviar un enlace opcional. Puedes iniciar sesión sin verificar el correo.");
     }
 
     @GetMapping("/me")

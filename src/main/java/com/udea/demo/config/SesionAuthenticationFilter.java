@@ -46,9 +46,7 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
                 boolean vigente = sesion.getRevokedAt() == null
                         && sesion.getAccessTokenExpiresAt().isAfter(ahora)
                         && sesion.getLastActivityAt().plusMinutes(minutosInactividad).isAfter(ahora)
-                        && Boolean.TRUE.equals(sesion.getUsuario().getActivo())
-                        && (sesion.getUsuario().getEstado() == EstadoUsuario.ACTIVO
-                            || sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION);
+                        && sesion.getUsuario().puedeAutenticarse();
                 if (vigente) {
                     sesion.setLastActivityAt(ahora);
                     // Rolling inactivity expiration without changing the Bearer token or the API contract.

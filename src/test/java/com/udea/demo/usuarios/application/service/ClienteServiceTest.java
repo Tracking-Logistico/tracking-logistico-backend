@@ -128,6 +128,21 @@ class ClienteServiceTest {
         }
 
         @Test
+        @DisplayName("Si falla el proveedor de correo se conserva el registro del cliente")
+        void falloCorreo_noBloqueaRegistro() {
+            stubPersistenciaRegistro();
+            org.mockito.Mockito.doThrow(new IllegalStateException("proveedor no disponible"))
+                    .when(emailService).enviarVerificacion(any(), any(), any());
+
+            ClienteResponseDTO respuesta = clienteService.registrarCliente(registroValido());
+
+            assertThat(respuesta.email()).isEqualTo("ana@tracking.com");
+            assertThat(respuesta.estado()).isEqualTo(EstadoUsuario.PENDIENTE_VERIFICACION);
+            verify(clienteRepository).save(any(Cliente.class));
+            verify(tokenRepository).save(any(TokenVerificacion.class));
+        }
+
+        @Test
         @DisplayName("Registro fallido por correo duplicado lanza IllegalArgumentException")
         void registroFallido_correoDuplicado() {
             // Arrange

@@ -3,6 +3,9 @@ package com.udea.demo.usuarios.application.service;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Value;
 import com.udea.demo.usuarios.interfaces.services.EmailServiceI;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +28,7 @@ import com.udea.demo.usuarios.interfaces.services.ClienteServiceI;
 
 @Service
 public class ClienteService implements ClienteServiceI {
+    private static final Logger log = LoggerFactory.getLogger(ClienteService.class);
 
     private final UsuarioRepository usuarioRepository;
     private final ClienteRepository clienteRepository;
@@ -98,8 +102,7 @@ public class ClienteService implements ClienteServiceI {
                 .build();
 
         tokenRepository.save(tokenVerificacion);
-        emailService.enviarVerificacion(guardado.getEmail(), guardado.getNombre(),
-                verificationUrl + (verificationUrl.contains("?") ? "&" : "?") + "token=" + tokenUUID);
+        enviarVerificacionSinBloquear(guardado, tokenUUID);
 
         return mapToClienteResponseDTO(cliente);
     }
@@ -119,8 +122,7 @@ public class ClienteService implements ClienteServiceI {
             verificacion.setToken(token);
             verificacion.setFechaExpiracion(LocalDateTime.now().plusHours(2));
             tokenRepository.save(verificacion);
-            emailService.enviarVerificacion(usuario.getEmail(), usuario.getNombre(),
-                    verificationUrl + (verificationUrl.contains("?") ? "&" : "?") + "token=" + token);
+            enviarVerificacionSinBloquear(usuario, token);
         });
     }
 
@@ -135,6 +137,10 @@ public class ClienteService implements ClienteServiceI {
         }
 
         Usuario usuario = tokenVerificacion.getUsuario();
+        if (usuario.getRol() != Rol.CLIENTE || !Boolean.TRUE.equals(usuario.getActivo())
+                || usuario.getEstado() != EstadoUsuario.PENDIENTE_VERIFICACION) {
+            throw new IllegalArgumentException("La cuenta no está pendiente de verificación");
+        }
         usuario.setEstado(EstadoUsuario.ACTIVO);
         usuarioRepository.save(usuario);
 
@@ -188,6 +194,16 @@ public class ClienteService implements ClienteServiceI {
         usuarioRepository.save(u);
     }
 
+
+    private void enviarVerificacionSinBloquear(Usuario usuario, String token) {
+        try {
+            emailService.enviarVerificacion(usuario.getEmail(), usuario.getNombre(),
+                    verificationUrl + (verificationUrl.contains("?") ? "&" : "?") + "token=" + token);
+        } catch (RuntimeException ex) {
+            log.warn("MAIL_NO_ENTREGADO evento=VERIFICACION destinatario={} causa={} resultado=PROCESO_CONTINUA",
+                    usuario.getEmail(), ex.getClass().getSimpleName());
+        }
+    }
 
     private UsuarioResponseDTO actualizarUsuario(Usuario usuario, ActualizarPerfilRequestDTO dto) {
         usuario.setNombre(dto.nombre());

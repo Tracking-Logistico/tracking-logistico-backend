@@ -37,7 +37,7 @@ public class AutenticacionController {
     @PostMapping("/password/forgot")
     public ResponseEntity<String> forgot(@Valid @RequestBody SolicitarRestablecimientoPasswordDTO request) {
         autenticacionService.solicitarRestablecimiento(request);
-        return ResponseEntity.ok("Si el correo existe, recibirás instrucciones para restablecer tu contraseña");
+        return ResponseEntity.ok("Si el correo existe, intentaremos enviar instrucciones para restablecer tu contraseña");
     }
 
     @PostMapping("/password/reset")

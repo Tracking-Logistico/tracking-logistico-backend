@@ -6,13 +6,17 @@ WORKDIR /app
 
 # Copiamos el archivo pom.xml y descargamos dependencias (optimiza la caché)
 COPY pom.xml .
+RUN grep -q '<annotationProcessorPaths>' pom.xml \
+ && grep -q '<proc>full</proc>' pom.xml \
+ && grep -q '<lombok.version>1.18.48</lombok.version>' pom.xml \
+ && echo 'POM_LOMBOK_CONFIG_OK'
 RUN mvn dependency:go-offline -B
 
 # Copiamos el código fuente de la aplicación
 COPY src ./src
 
 # Compilamos el proyecto y generamos el .jar omitiendo las pruebas (para mayor rapidez)
-RUN mvn -B -Dmaven.test.skip=true -Djacoco.skip=true clean package
+RUN mvn -B -Dmaven.compiler.proc=full -Dmaven.test.skip=true -Djacoco.skip=true clean package
 
 # ==========================================
 # Etapa 2: Ejecución (Runtime)

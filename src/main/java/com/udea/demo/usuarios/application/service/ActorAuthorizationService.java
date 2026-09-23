@@ -48,7 +48,6 @@ public class ActorAuthorizationService {
                 .getId();
     }
 
-    /** Las notificaciones se asignan al id de usuarios, no al id de conductores. */
     public Long conductorActualUsuarioId() {
         return exigirRol(Rol.CONDUCTOR).getId();
     }

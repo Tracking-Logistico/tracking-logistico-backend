@@ -18,7 +18,6 @@ public class Operador {
     @Column(name = "codigo_empleado", unique = true)
     private String codigoEmpleado;
 
-
     public Operador() {}
     public Operador(Long id, Usuario usuario, String codigoEmpleado) {
         this.id = id;

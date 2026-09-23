@@ -15,7 +15,6 @@ public class HistorialPedido {
     @Column(name = "detalle", length = 500) private String detalle;
     @Column(name = "fecha", nullable = false) private LocalDateTime fecha;
 
-
     public HistorialPedido() {}
     public HistorialPedido(Long id, Long pedidoId, Long usuarioId, String tipoEvento, String campoObservado, String detalle, LocalDateTime fecha) {
         this.id = id;

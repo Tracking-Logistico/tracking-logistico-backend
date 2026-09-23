@@ -9,7 +9,7 @@ public enum EstadoPedido {
     EN_REPARTO,
     ENTREGADO,
     RECHAZADO,
-    // Estados heredados mantenidos solo para compatibilidad de datos/migraciones previas.
+
     RECIBIDO,
     EN_VALIDACION,
     VALIDADO;

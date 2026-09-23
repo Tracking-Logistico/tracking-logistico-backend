@@ -69,7 +69,7 @@ class AutenticacionControllerTest {
         @Test
         @DisplayName("200 OK cuando las credenciales son válidas y envía IP y User-Agent")
         void login_exitoso() throws Exception {
-            // Arrange
+
             LoginRequestDTO request = new LoginRequestDTO("operador@tracking.com", "Secret123!");
             LocalDateTime now = LocalDateTime.now();
             LoginResponseDTO responseDTO = new LoginResponseDTO(
@@ -84,7 +84,6 @@ class AutenticacionControllerTest {
             when(autenticacionService.iniciarSesion(eq(request), any(), any()))
                     .thenReturn(responseDTO);
 
-            // Act & Assert
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request))
@@ -101,12 +100,11 @@ class AutenticacionControllerTest {
         @Test
         @DisplayName("401 UNAUTHORIZED cuando las credenciales son incorrectas (mensaje genérico)")
         void login_credencialesInvalidas() throws Exception {
-            // Arrange
+
             LoginRequestDTO request = new LoginRequestDTO("usuario@tracking.com", "BadPass123!");
             when(autenticacionService.iniciarSesion(eq(request), any(), any()))
                     .thenThrow(new CredencialesInvalidasException());
 
-            // Act & Assert
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -117,13 +115,12 @@ class AutenticacionControllerTest {
         @Test
         @DisplayName("423 LOCKED cuando la cuenta está bloqueada temporalmente")
         void login_cuentaBloqueada() throws Exception {
-            // Arrange
+
             LoginRequestDTO request = new LoginRequestDTO("bloqueado@tracking.com", "Password123!");
             LocalDateTime bloqueadoHasta = LocalDateTime.now().plusMinutes(15);
             when(autenticacionService.iniciarSesion(eq(request), any(), any()))
                     .thenThrow(new CuentaBloqueadaLoginException(bloqueadoHasta));
 
-            // Act & Assert
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -152,7 +149,7 @@ class AutenticacionControllerTest {
         @Test
         @DisplayName("200 OK con nuevo token de acceso cuando el refresh token es válido")
         void refresh_exitoso() throws Exception {
-            // Arrange
+
             RefreshTokenRequestDTO request = new RefreshTokenRequestDTO("valid-refresh-token");
             LocalDateTime now = LocalDateTime.now();
             LoginResponseDTO responseDTO = new LoginResponseDTO(
@@ -166,7 +163,6 @@ class AutenticacionControllerTest {
 
             when(autenticacionService.renovarSesion(request)).thenReturn(responseDTO);
 
-            // Act & Assert
             mockMvc.perform(post("/api/v1/auth/refresh")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -210,10 +206,9 @@ class AutenticacionControllerTest {
         @Test
         @DisplayName("204 NO CONTENT cuando se cierra sesión enviando Bearer token en Authorization")
         void logout_exitoso() throws Exception {
-            // Arrange
+
             String token = "access-token-to-invalidate";
 
-            // Act & Assert
             mockMvc.perform(post("/api/v1/auth/logout")
                             .header("Authorization", "Bearer " + token))
                     .andExpect(status().isNoContent());

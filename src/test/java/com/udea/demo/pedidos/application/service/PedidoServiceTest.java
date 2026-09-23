@@ -34,20 +34,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-
-/**
- * Pruebas unitarias del PedidoService (capa de aplicación) con colaboradores mockeados.
- *
- * Cada prueba corresponde a un caso de prueba (CP), cubriendo camino feliz y camino de error.
- * Patrón AAA (Arrange - Act - Assert) con secciones marcadas.
- *
- * CP cubiertos:
- *  - CP-HU03A-01: recepción (feliz) e inexistente (error).
- *  - CP-HU03A-02: validación feliz y pedido inexistente (error).
- *  - CP-HU03A-03: ajuste de prioridad en la validación.
- *  - CP-HU03B-01: activación (feliz) e idempotencia (error BUG).
- *  - CP-HU03B-02: etiqueta (feliz) y sin tracking (error).
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PedidoService - aplicación (por caso de prueba)")
 class PedidoServiceTest {
@@ -95,70 +81,59 @@ class PedidoServiceTest {
     @DisplayName("CP-HU03A-01: recepción")
     class Recibir {
 
-        /** CP-HU03A-01: camino feliz. */
         @Test
         @DisplayName("recibir() genera número único, sugiere prioridad y guarda en SOLICITADO")
         void recibir_feliz() {
-            // Arrange
+
             RecibirPedidoRequestDTO dto = recibirRequest();
             when(prioridadStrategy.sugerir(dto.tipoServicio(), dto.pesoKg())).thenReturn(Prioridad.ALTA);
             when(generadorNumeroPedido.generar()).thenReturn(NUMERO_PEDIDO);
             when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoConId());
 
-            // Act
             PedidoResponseDTO respuesta = pedidoService.recibir(dto);
 
-            // Assert
             assertThat(respuesta.numeroPedido()).isEqualTo(NUMERO_PEDIDO);
             assertThat(respuesta.estado()).isEqualTo(EstadoPedido.SOLICITADO);
             verify(pedidoRepository).save(any(Pedido.class));
         }
 
-        /** CP-HU03A-01: camino de error (pedido inexistente). */
         @Test
         @DisplayName("obtener() de un pedido inexistente lanza PedidoNoEncontradoException")
         void obtener_error() {
-            // Arrange
+
             when(pedidoRepository.findById(1L)).thenReturn(Optional.empty());
 
-            // Act & Assert
             assertThatThrownBy(() -> pedidoService.obtener(1L))
                     .isInstanceOf(PedidoNoEncontradoException.class);
         }
     }
 
-    /** CP-HU03A-02: camino feliz (validación aprobada). */
     @Test
     @DisplayName("CP-HU03A-02: validar() aprueba el pedido y guarda los cambios")
     void validar_feliz() {
-        // Arrange
+
         Pedido pedido = pedidoConId();
         ValidarPedidoRequestDTO dto = new ValidarPedidoRequestDTO(true, null, "ok", null, null, false);
         when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Act
         PedidoResponseDTO respuesta = pedidoService.validar(1L, dto);
 
-        // Assert
         assertThat(respuesta.estado()).isEqualTo(EstadoPedido.SOLICITADO);
         verify(pedidoRepository).save(pedido);
     }
 
-    /** CP-HU03A-03: camino feliz (ajuste de prioridad). */
     @Test
     @DisplayName("CP-HU03A-03: validar() con prioridad confirmada la ajusta en el pedido")
     void validar_ajustePrioridad_feliz() {
-        // Arrange
+
         Pedido pedido = pedidoConId();
         ValidarPedidoRequestDTO dto = new ValidarPedidoRequestDTO(true, Prioridad.ALTA, null, null, null, false);
         when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Act
         PedidoResponseDTO respuesta = pedidoService.validar(1L, dto);
 
-        // Assert
         assertThat(respuesta.prioridadConfirmada()).isEqualTo(Prioridad.ALTA);
     }
 
@@ -166,21 +141,18 @@ class PedidoServiceTest {
     @DisplayName("CP-HU03B-01: activación de tracking")
     class ActivarTracking {
 
-        /** CP-HU03B-01: camino feliz. */
         @Test
         @DisplayName("activarTracking() genera el tracking y pasa a CREADO")
         void activarTracking_feliz() {
-            // Arrange
+
             Pedido pedido = pedidoConId();
             pedido.validar(true, null, null, 99L);
             when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
             when(generadorNumeroTracking.generar()).thenReturn(NUMERO_TRACKING);
             when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            // Act
             PedidoResponseDTO respuesta = pedidoService.activarTracking(1L);
 
-            // Assert
             assertThat(respuesta.estado()).isEqualTo(EstadoPedido.CREADO);
             assertThat(respuesta.numeroTracking()).isEqualTo(NUMERO_TRACKING);
         }
@@ -188,18 +160,16 @@ class PedidoServiceTest {
         @Test
         @DisplayName("BUG CP-HU03B-01: activar dos veces debería ser idempotente")
         void activarTracking_error_idempotencia() {
-            // Arrange
+
             Pedido pedido = pedidoConId();
             pedido.validar(true, null, null, 99L);
             when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
             when(generadorNumeroTracking.generar()).thenReturn(NUMERO_TRACKING);
             when(pedidoRepository.save(any(Pedido.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            // Act
             PedidoResponseDTO primera = pedidoService.activarTracking(1L);
             PedidoResponseDTO segunda = pedidoService.activarTracking(1L);
 
-            // Assert
             assertThat(segunda.numeroTracking()).isEqualTo(primera.numeroTracking());
         }
     }
@@ -208,34 +178,29 @@ class PedidoServiceTest {
     @DisplayName("CP-HU03B-02: etiqueta")
     class GenerarEtiqueta {
 
-        /** CP-HU03B-02: camino feliz. */
         @Test
         @DisplayName("generarEtiqueta() imprime la etiqueta y conserva el tracking")
         void generarEtiqueta_feliz() {
-            // Arrange
+
             Pedido pedido = pedidoConId();
             pedido.validar(true, null, null, 99L);
             pedido.activarTracking(NUMERO_TRACKING);
             when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
             when(generadorEtiqueta.generar(pedido)).thenReturn("CONTENIDO-ETIQUETA");
 
-            // Act
             EtiquetaEnvioResponseDTO respuesta = pedidoService.generarEtiqueta(1L);
 
-            // Assert
             assertThat(respuesta.numeroTracking()).isEqualTo(NUMERO_TRACKING);
             assertThat(respuesta.contenido()).isEqualTo("CONTENIDO-ETIQUETA");
         }
 
-        /** CP-HU03B-02: camino de error (sin tracking no se genera etiqueta). */
         @Test
         @DisplayName("generarEtiqueta() sin tracking activo lanza TrackingNoActivoException")
         void generarEtiqueta_error() {
-            // Arrange
-            Pedido pedido = pedidoConId(); // SOLICITADO, sin tracking
+
+            Pedido pedido = pedidoConId();
             when(pedidoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pedido));
 
-            // Act & Assert
             assertThatThrownBy(() -> pedidoService.generarEtiqueta(1L))
                     .isInstanceOf(com.udea.demo.pedidos.domain.exception.TrackingNoActivoException.class);
             verify(generadorEtiqueta, never()).generar(any());

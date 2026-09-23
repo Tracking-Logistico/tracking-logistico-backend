@@ -84,7 +84,7 @@ class SesionAuthenticationFilterTest {
         @Test
         @DisplayName("Cliente activo dentro de la ventana de 30 minutos se autentica y actualiza lastActivityAt")
         void clienteActivo_seAutentica() throws ServletException, IOException {
-            // Arrange
+
             String token = "client-token";
             String tokenHash = AutenticacionService.hash(token);
             Usuario cliente = crearUsuario("cliente@correo.com", Rol.CLIENTE, true);
@@ -92,16 +92,14 @@ class SesionAuthenticationFilterTest {
 
             SesionUsuario sesion = new SesionUsuario(
                     cliente, tokenHash, "refreshHash",
-                    ahora.plusMinutes(25), ahora.plusDays(7), ahora.minusMinutes(10) // última actividad hace 10 min (<30)
+                    ahora.plusMinutes(25), ahora.plusDays(7), ahora.minusMinutes(10)
             );
 
             when(sesionRepository.findByAccessTokenHash(tokenHash)).thenReturn(Optional.of(sesion));
             request.addHeader("Authorization", "Bearer " + token);
 
-            // Act
             filter.doFilterInternal(request, response, filterChain);
 
-            // Assert
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             assertThat(auth).isNotNull();
             assertThat(auth.getName()).isEqualTo("cliente@correo.com");
@@ -134,7 +132,7 @@ class SesionAuthenticationFilterTest {
         @Test
         @DisplayName("Cliente inactivo más de 30 minutos NO se autentica y requiere reautenticación")
         void clienteInactivoMasDe30Minutos_noSeAutentica() throws ServletException, IOException {
-            // Arrange
+
             String token = "client-token-inactivo";
             String tokenHash = AutenticacionService.hash(token);
             Usuario cliente = crearUsuario("cliente@correo.com", Rol.CLIENTE, true);
@@ -142,16 +140,14 @@ class SesionAuthenticationFilterTest {
 
             SesionUsuario sesion = new SesionUsuario(
                     cliente, tokenHash, "refreshHash",
-                    ahora.plusMinutes(25), ahora.plusDays(7), ahora.minusMinutes(35) // inactivo hace 35 min (>30)
+                    ahora.plusMinutes(25), ahora.plusDays(7), ahora.minusMinutes(35)
             );
 
             when(sesionRepository.findByAccessTokenHash(tokenHash)).thenReturn(Optional.of(sesion));
             request.addHeader("Authorization", "Bearer " + token);
 
-            // Act
             filter.doFilterInternal(request, response, filterChain);
 
-            // Assert
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             assertThat(auth).isNull();
             verify(sesionRepository, never()).save(any());
@@ -161,7 +157,7 @@ class SesionAuthenticationFilterTest {
         @Test
         @DisplayName("Operador inactivo más de 15 minutos NO se autentica por sensibilidad de datos")
         void operadorInactivoMasDe15Minutos_noSeAutentica() throws ServletException, IOException {
-            // Arrange
+
             String token = "operador-token-inactivo";
             String tokenHash = AutenticacionService.hash(token);
             Usuario operador = crearUsuario("operador@tracking.com", Rol.OPERADOR, true);
@@ -169,16 +165,14 @@ class SesionAuthenticationFilterTest {
 
             SesionUsuario sesion = new SesionUsuario(
                     operador, tokenHash, "refreshHash",
-                    ahora.plusMinutes(10), ahora.plusDays(7), ahora.minusMinutes(16) // inactivo hace 16 min (>15)
+                    ahora.plusMinutes(10), ahora.plusDays(7), ahora.minusMinutes(16)
             );
 
             when(sesionRepository.findByAccessTokenHash(tokenHash)).thenReturn(Optional.of(sesion));
             request.addHeader("Authorization", "Bearer " + token);
 
-            // Act
             filter.doFilterInternal(request, response, filterChain);
 
-            // Assert
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             assertThat(auth).isNull();
             verify(sesionRepository, never()).save(any());
@@ -188,7 +182,7 @@ class SesionAuthenticationFilterTest {
         @Test
         @DisplayName("Operador activo dentro de los 15 minutos se autentica con ROLE_OPERADOR")
         void operadorActivoDentroDe15Minutos_seAutentica() throws ServletException, IOException {
-            // Arrange
+
             String token = "operador-token-activo";
             String tokenHash = AutenticacionService.hash(token);
             Usuario operador = crearUsuario("operador@tracking.com", Rol.OPERADOR, true);
@@ -196,16 +190,14 @@ class SesionAuthenticationFilterTest {
 
             SesionUsuario sesion = new SesionUsuario(
                     operador, tokenHash, "refreshHash",
-                    ahora.plusMinutes(10), ahora.plusDays(7), ahora.minusMinutes(5) // inactivo hace 5 min (<15)
+                    ahora.plusMinutes(10), ahora.plusDays(7), ahora.minusMinutes(5)
             );
 
             when(sesionRepository.findByAccessTokenHash(tokenHash)).thenReturn(Optional.of(sesion));
             request.addHeader("Authorization", "Bearer " + token);
 
-            // Act
             filter.doFilterInternal(request, response, filterChain);
 
-            // Assert
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             assertThat(auth).isNotNull();
             assertThat(auth.getAuthorities()).anyMatch(a -> a.getAuthority().equals("ROLE_OPERADOR"));
@@ -216,7 +208,7 @@ class SesionAuthenticationFilterTest {
         @Test
         @DisplayName("Conductor inactivo más de 15 minutos NO se autentica")
         void conductorInactivoMasDe15Minutos_noSeAutentica() throws ServletException, IOException {
-            // Arrange
+
             String token = "conductor-token-inactivo";
             String tokenHash = AutenticacionService.hash(token);
             Usuario conductor = crearUsuario("conductor@tracking.com", Rol.CONDUCTOR, true);
@@ -224,16 +216,14 @@ class SesionAuthenticationFilterTest {
 
             SesionUsuario sesion = new SesionUsuario(
                     conductor, tokenHash, "refreshHash",
-                    ahora.plusMinutes(10), ahora.plusDays(7), ahora.minusMinutes(20) // inactivo hace 20 min (>15)
+                    ahora.plusMinutes(10), ahora.plusDays(7), ahora.minusMinutes(20)
             );
 
             when(sesionRepository.findByAccessTokenHash(tokenHash)).thenReturn(Optional.of(sesion));
             request.addHeader("Authorization", "Bearer " + token);
 
-            // Act
             filter.doFilterInternal(request, response, filterChain);
 
-            // Assert
             assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
             verify(filterChain).doFilter(request, response);
         }
@@ -250,7 +240,7 @@ class SesionAuthenticationFilterTest {
                     cliente, tokenHash, "refreshHash",
                     ahora.plusMinutes(25), ahora.plusDays(7), ahora.minusMinutes(2)
             );
-            sesion.setRevokedAt(ahora.minusMinutes(1)); // Sesión cerrada previamente
+            sesion.setRevokedAt(ahora.minusMinutes(1));
 
             when(sesionRepository.findByAccessTokenHash(tokenHash)).thenReturn(Optional.of(sesion));
             request.addHeader("Authorization", "Bearer " + token);
@@ -272,7 +262,7 @@ class SesionAuthenticationFilterTest {
 
             SesionUsuario sesion = new SesionUsuario(
                     cliente, tokenHash, "refreshHash",
-                    ahora.minusSeconds(1), // ya venció
+                    ahora.minusSeconds(1),
                     ahora.plusDays(7), ahora.minusMinutes(2)
             );
 

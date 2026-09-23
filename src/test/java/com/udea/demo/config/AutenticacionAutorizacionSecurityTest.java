@@ -32,7 +32,7 @@ class AutenticacionAutorizacionSecurityTest {
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
-                    .andExpect(status().isBadRequest()); // Pasa el filtro de seguridad y llega a validación de controller
+                    .andExpect(status().isBadRequest());
         }
 
         @Test
@@ -124,7 +124,6 @@ class AutenticacionAutorizacionSecurityTest {
                     .content("{\"conductorId\":1,\"pedidoIds\":[2]}"))
                     .andExpect(status().isForbidden());
         }
-
 
         @Test
         @WithMockUser(username = "conductor@tracking.com", roles = {"CONDUCTOR"})

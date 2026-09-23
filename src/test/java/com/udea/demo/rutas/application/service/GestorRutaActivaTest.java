@@ -19,11 +19,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Pruebas unitarias de GestorRutaActiva (HU-09: Gestión y Asignación de Rutas).
- *
- * Patrón AAA (Arrange - Act - Assert).
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("GestorRutaActiva - componente de dominio (HU-09)")
 class GestorRutaActivaTest {
@@ -39,16 +34,14 @@ class GestorRutaActivaTest {
     @Test
     @DisplayName("obtenerOCrear() retorna la ruta existente si el conductor ya tiene ruta para hoy")
     void obtenerOCrear_rutaExistente_retornaRutaSinCrearNueva() {
-        // Arrange
+
         LocalDate hoy = LocalDate.now();
         Ruta rutaExistente = Ruta.crear(CONDUCTOR_ID, hoy);
         when(rutaRepository.findByConductorIdAndFecha(CONDUCTOR_ID, hoy))
                 .thenReturn(Optional.of(rutaExistente));
 
-        // Act
         Ruta resultado = gestorRutaActiva.obtenerOCrear(CONDUCTOR_ID);
 
-        // Assert
         assertThat(resultado).isSameAs(rutaExistente);
         assertThat(resultado.getConductorId()).isEqualTo(CONDUCTOR_ID);
         assertThat(resultado.getFecha()).isEqualTo(hoy);
@@ -58,17 +51,15 @@ class GestorRutaActivaTest {
     @Test
     @DisplayName("obtenerOCrear() crea y persiste una nueva ruta si el conductor no tiene ruta para hoy")
     void obtenerOCrear_noExisteRuta_creaYGuardaNuevaRuta() {
-        // Arrange
+
         LocalDate hoy = LocalDate.now();
         when(rutaRepository.findByConductorIdAndFecha(CONDUCTOR_ID, hoy))
                 .thenReturn(Optional.empty());
         when(rutaRepository.save(any(Ruta.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        // Act
         Ruta resultado = gestorRutaActiva.obtenerOCrear(CONDUCTOR_ID);
 
-        // Assert
         assertThat(resultado).isNotNull();
         assertThat(resultado.getConductorId()).isEqualTo(CONDUCTOR_ID);
         assertThat(resultado.getFecha()).isEqualTo(hoy);

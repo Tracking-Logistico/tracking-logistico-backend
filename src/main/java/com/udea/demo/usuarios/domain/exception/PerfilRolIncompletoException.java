@@ -2,7 +2,6 @@ package com.udea.demo.usuarios.domain.exception;
 
 import com.udea.demo.usuarios.domain.model.Rol;
 
-/** El usuario tiene el rol, pero no tiene su perfil en la tabla correspondiente. */
 public class PerfilRolIncompletoException extends RuntimeException {
     private final Rol rol;
     private final Long usuarioId;

@@ -71,13 +71,12 @@ class ClienteControllerTest {
         @Test
         @DisplayName("201 Created cuando el registro es exitoso")
         void registro_devuelve201() throws Exception {
-            // Arrange
+
             ClienteResponseDTO respuesta = new ClienteResponseDTO(
                     10L, "Ana Pérez", "ana@tracking.com", "3001234567", "Calle 10",
                     "Medellín", Rol.CLIENTE, EstadoUsuario.PENDIENTE_VERIFICACION, LocalDateTime.now());
             when(clienteService.registrarCliente(any(RegistroClienteRequestDTO.class))).thenReturn(respuesta);
 
-            // Act & Assert
             mockMvc.perform(post("/api/v1/clientes/registro")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(registroValido())))
@@ -93,11 +92,10 @@ class ClienteControllerTest {
         @Test
         @DisplayName("400 Bad Request cuando el correo ya está registrado")
         void registro_correoDuplicado_devuelve400() throws Exception {
-            // Arrange
+
             when(clienteService.registrarCliente(any(RegistroClienteRequestDTO.class)))
                     .thenThrow(new IllegalArgumentException("El correo ya se encuentra registrado"));
 
-            // Act & Assert
             mockMvc.perform(post("/api/v1/clientes/registro")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(registroValido())))
@@ -108,13 +106,12 @@ class ClienteControllerTest {
         @Test
         @DisplayName("400 Bad Request con errores por campo cuando el DTO es inválido")
         void registro_dtoInvalido_devuelve400PorCampo() throws Exception {
-            // Arrange
+
             String cuerpo = """
                     {"nombre":"","email":"no-es-email","password":"123","confirmarPassword":"",
                      "aceptoTerminos":false,"versionTerminos":""}
                     """;
 
-            // Act & Assert
             mockMvc.perform(post("/api/v1/clientes/registro")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(cuerpo))
@@ -131,7 +128,7 @@ class ClienteControllerTest {
         @Test
         @DisplayName("200 OK cuando el token es válido")
         void verificar_devuelve200() throws Exception {
-            // Act & Assert
+
             mockMvc.perform(get("/api/v1/clientes/verificar").param("token", "uuid-token"))
                     .andExpect(status().isOk())
                     .andExpect(content().string("Correo verificado con éxito. Puedes seguir utilizando tu cuenta."));
@@ -142,11 +139,10 @@ class ClienteControllerTest {
         @Test
         @DisplayName("400 Bad Request cuando el token expiró")
         void verificar_tokenExpirado_devuelve400() throws Exception {
-            // Arrange
+
             doThrow(new IllegalArgumentException("El token de verificación ha expirado"))
                     .when(clienteService).verificarCuenta("expirado");
 
-            // Act & Assert
             mockMvc.perform(get("/api/v1/clientes/verificar").param("token", "expirado"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.error").value("El token de verificación ha expirado"));
@@ -160,7 +156,7 @@ class ClienteControllerTest {
         @Test
         @DisplayName("200 OK al actualizar el perfil")
         void actualizarPerfil_devuelve200() throws Exception {
-            // Arrange
+
             UsuarioResponseDTO respuesta = new UsuarioResponseDTO(
                     1L, "Ana María", "ana@tracking.com", "300999", "Nueva",
                     Rol.CLIENTE, EstadoUsuario.ACTIVO, LocalDateTime.now());
@@ -168,7 +164,6 @@ class ClienteControllerTest {
                     .thenReturn(respuesta);
             ActualizarPerfilRequestDTO dto = new ActualizarPerfilRequestDTO("Ana María", "300999", "Nueva");
 
-            // Act & Assert
             mockMvc.perform(put("/api/v1/clientes/1/perfil")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
@@ -187,7 +182,7 @@ class ClienteControllerTest {
         @Test
         @DisplayName("204 No Content en baja lógica")
         void desactivar_devuelve204() throws Exception {
-            // Act & Assert
+
             mockMvc.perform(delete("/api/v1/clientes/10"))
                     .andExpect(status().isNoContent());
 

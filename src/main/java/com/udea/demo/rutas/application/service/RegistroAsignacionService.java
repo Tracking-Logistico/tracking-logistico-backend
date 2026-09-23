@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
-/** Registra en la misma transacción la trazabilidad y el aviso interno al conductor. */
 @Service
 public class RegistroAsignacionService {
     private final JdbcTemplate jdbc;

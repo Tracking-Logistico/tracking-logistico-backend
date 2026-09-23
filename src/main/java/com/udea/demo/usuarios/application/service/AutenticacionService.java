@@ -174,7 +174,7 @@ public class AutenticacionService implements AutenticacionServiceI {
             throw new TokenRestablecimientoInvalidoException();
         }
         usuario.setPassword(passwordEncoder.encode(request.nuevaPassword()));
-        // Internal users may activate through this flow; client email confirmation is optional.
+
         if (usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION) {
             usuario.setEstado(EstadoUsuario.ACTIVO);
         }

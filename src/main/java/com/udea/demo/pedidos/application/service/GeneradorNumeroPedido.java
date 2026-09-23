@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
-// Pure Fabrication (GRASP): no es un concepto del dominio, existe solo para mantener a Pedido cohesionado
 @Component
 public class GeneradorNumeroPedido {
 

@@ -1,6 +1,5 @@
 package com.udea.demo.usuarios.application.service;
 
-
 import com.udea.demo.usuarios.application.dto.*;
 import com.udea.demo.usuarios.domain.exception.*;
 import com.udea.demo.usuarios.domain.model.*;
@@ -53,7 +52,6 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
             throw new RolInternoInvalidoException();
         }
 
-        // validaciones específicas por rol
         if (command.rol() == Rol.CONDUCTOR && esVacio(command.licencia())) {
             throw new LicenciaRequeridaException();
         }
@@ -65,10 +63,9 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
             throw new EmailYaRegistradoException(command.email());
         }
 
-        // validar unicidad del código de empleado
         if (command.rol() == Rol.OPERADOR
                 && operadorRepository.existsByCodigoEmpleado(command.codigoEmpleado())) {
-            throw new CodigoEmpleadoRequeridoException(); // o una excepción de duplicado
+            throw new CodigoEmpleadoRequeridoException();
         }
 
         String passwordTemporal = passwordTemporalService.generar();
@@ -109,8 +106,7 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         if (command.direccion() != null) usuario.setDireccion(command.direccion());
 
         Rol destino = command.rol() == null ? usuario.getRol() : command.rol();
-        // La identidad de cada rol tiene su propia tabla. Conservar las filas anteriores:
-        // pedidos, rutas e historial pueden seguir referenciándolas.
+
         if (destino == Rol.CONDUCTOR) {
             conductorRepository.findByUsuarioId(id).ifPresentOrElse(conductor -> {
                 if (command.licencia() != null) {
@@ -150,12 +146,11 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
 
         if (destino != usuario.getRol()) {
             usuario.setRol(destino);
-            // El correo es opcional: una cuenta cliente pendiente de verificación
-            // sigue activa cuando pasa a ser operador o conductor.
+
             if (usuario.getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION) {
                 usuario.setEstado(EstadoUsuario.ACTIVO);
             }
-            // Una sesión antigua nunca debe conservar acceso con un rol nuevo.
+
             sesionRepository.deleteByUsuarioId(id);
         }
 
@@ -174,7 +169,7 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         usuario.setActivo(false);
         usuario.setEstado(EstadoUsuario.INACTIVO);
         usuarioRepository.save(usuario);
-        // Se conservan entidades operativas para mantener historial y referencias de rutas.
+
         sesionRepository.deleteByUsuarioId(usuario.getId());
     }
 
@@ -183,8 +178,6 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
     public void cambiarPassword(Long id, String passwordActual,
                                 String nuevaPassword, String confirmarPassword) {
 
-        // Password changes are always scoped to the signed-in account.
-        // Do not allow a caller to change another user's password using an ID.
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new UsuarioNoEncontradoException(id));
         actorAuthorizationService.exigirPropietario(id, usuario.getRol());
@@ -215,8 +208,6 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         usuarioRepository.save(usuario);
         sesionRepository.deleteByUsuarioId(usuario.getId());
     }
-
-    // ---------- helpers ----------
 
     private void crearFilaSegunRol(Usuario usuario, Rol rol,
                                    String licencia, String codigoEmpleado) {

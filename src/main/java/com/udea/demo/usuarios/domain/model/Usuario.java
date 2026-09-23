@@ -51,7 +51,6 @@ public class Usuario {
         this.fechaCreacion = LocalDateTime.now();
     }
 
-
     public Usuario() {}
     public Usuario(Long id, String nombre, String email, String password, String telefono, String direccion, Rol rol, EstadoUsuario estado, Boolean aceptoTerminos, LocalDateTime fechaAceptacionTerminos, String versionTerminos, Boolean aceptoPoliticaDatos, LocalDateTime fechaAceptacionPoliticaDatos, String versionPoliticaDatos, Boolean activo, LocalDateTime fechaCreacion) {
         this.id = id;
@@ -72,8 +71,6 @@ public class Usuario {
         this.fechaCreacion = fechaCreacion;
     }
 
-    // La verificación del correo del cliente es informativa, no un requisito para usar la cuenta.
-    // La activación de usuarios internos conserva su flujo de cambio de contraseña inicial.
     public boolean puedeAutenticarse() {
         return Boolean.TRUE.equals(activo)
                 && (estado == EstadoUsuario.ACTIVO

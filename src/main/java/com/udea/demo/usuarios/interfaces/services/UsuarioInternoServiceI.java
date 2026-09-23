@@ -1,6 +1,5 @@
 package com.udea.demo.usuarios.interfaces.services;
 
-
 import com.udea.demo.usuarios.application.dto.*;
 
 public interface UsuarioInternoServiceI {

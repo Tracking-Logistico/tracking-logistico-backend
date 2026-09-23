@@ -78,17 +78,15 @@ class UsuarioInternoServiceTest {
         @Test
         @DisplayName("Crea OPERADOR en PENDIENTE_ACTIVACION con clave temporal de 16 caracteres")
         void crearOperador_exitoso() {
-            // Arrange
+
             stubCreacionExitosa();
             when(operadorRepository.existsByCodigoEmpleado("OP-001")).thenReturn(false);
             CrearUsuarioInternoCommand cmd = new CrearUsuarioInternoCommand(
                     "Laura Ops", "laura@tracking.com", "3001112233",
                     Rol.OPERADOR, "Calle Ops", null, "OP-001");
 
-            // Act
             ResultadoCreacionUsuarioInterno resultado = usuarioInternoService.crear(cmd);
 
-            // Assert
             assertThat(resultado.id()).isEqualTo(20L);
             assertThat(resultado.email()).isEqualTo("laura@tracking.com");
             assertThat(resultado.rol()).isEqualTo(Rol.OPERADOR);
@@ -109,16 +107,14 @@ class UsuarioInternoServiceTest {
         @Test
         @DisplayName("Crea CONDUCTOR en PENDIENTE_ACTIVACION")
         void crearConductor_exitoso() {
-            // Arrange
+
             stubCreacionExitosa();
             CrearUsuarioInternoCommand cmd = new CrearUsuarioInternoCommand(
                     "Carlos Cond", "carlos@tracking.com", "3002223344",
                     Rol.CONDUCTOR, "Calle Cond", "LIC-999", null);
 
-            // Act
             ResultadoCreacionUsuarioInterno resultado = usuarioInternoService.crear(cmd);
 
-            // Assert
             assertThat(resultado.rol()).isEqualTo(Rol.CONDUCTOR);
             assertThat(resultado.passwordTemporal()).hasSize(16);
             ArgumentCaptor<Conductor> captor = ArgumentCaptor.forClass(Conductor.class);
@@ -130,12 +126,11 @@ class UsuarioInternoServiceTest {
         @Test
         @DisplayName("Rechaza crear usuario interno con Rol.CLIENTE")
         void crearConRolCliente_lanzaRolInternoInvalido() {
-            // Arrange
+
             CrearUsuarioInternoCommand cmd = new CrearUsuarioInternoCommand(
                     "Cliente", "c@tracking.com", "3000000000",
                     Rol.CLIENTE, "Dir", null, null);
 
-            // Act & Assert
             assertThatThrownBy(() -> usuarioInternoService.crear(cmd))
                     .isInstanceOf(RolInternoInvalidoException.class)
                     .hasMessageContaining("OPERADOR o CONDUCTOR");
@@ -211,7 +206,7 @@ class UsuarioInternoServiceTest {
         @Test
         @DisplayName("Actualiza datos personales sin cambiar de rol")
         void editarDatos_sinCambioDeRol() {
-            // Arrange
+
             Usuario usuario = operadorPersistido();
             when(usuarioRepository.findById(20L)).thenReturn(Optional.of(usuario));
             when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -220,10 +215,8 @@ class UsuarioInternoServiceTest {
             EditarUsuarioInternoCommand cmd = new EditarUsuarioInternoCommand(
                     "Laura Nueva", "3009998877", "Nueva dir", null, null, "OP-002");
 
-            // Act
             UsuarioResponseDTO dto = usuarioInternoService.editar(20L, cmd);
 
-            // Assert
             assertThat(dto.nombre()).isEqualTo("Laura Nueva");
             assertThat(dto.telefono()).isEqualTo("3009998877");
             assertThat(dto.direccion()).isEqualTo("Nueva dir");
@@ -444,17 +437,15 @@ class UsuarioInternoServiceTest {
         @Test
         @DisplayName("Cambio inicial coincidente pasa de PENDIENTE_ACTIVACION a ACTIVO")
         void cambioInicial_activaCuenta() {
-            // Arrange
+
             Usuario usuario = pendienteActivacion();
             when(usuarioRepository.findById(20L)).thenReturn(Optional.of(usuario));
             when(passwordEncoder.matches(TEMPORAL, HASH)).thenReturn(true);
             when(passwordEncoder.matches("NuevaClave1!", HASH)).thenReturn(false);
             when(passwordEncoder.encode("NuevaClave1!")).thenReturn("$2a$10$nueva");
 
-            // Act
             usuarioInternoService.cambiarPassword(20L, TEMPORAL, "NuevaClave1!", "NuevaClave1!");
 
-            // Assert
             assertThat(usuario.getEstado()).isEqualTo(EstadoUsuario.ACTIVO);
             assertThat(usuario.getPassword()).isEqualTo("$2a$10$nueva");
             verify(usuarioRepository).save(usuario);

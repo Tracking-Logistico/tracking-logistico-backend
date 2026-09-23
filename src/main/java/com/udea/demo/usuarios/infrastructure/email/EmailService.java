@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
-/** Adaptador de correo best-effort: errores de proveedores no alteran los casos de uso. */
 @Service
 public class EmailService implements EmailServiceI {
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
@@ -103,7 +102,7 @@ public class EmailService implements EmailServiceI {
         log.warn("MAIL_NO_ENTREGADO evento={} proveedor={} destinatario={} motivo={} resultado=PROCESO_CONTINUA",
                 evento, provider, enmascarar(destinatario), motivo);
         if (logActionLinks) {
-            // SOLO desarrollo local; deshabilitado por defecto. Los enlaces son credenciales de un solo uso.
+
             log.warn("MAIL_ENLACE_DESARROLLO evento={} enlace={} (desactivar MAIL_LOG_ACTION_LINKS fuera de local)", evento, enlace);
         }
     }

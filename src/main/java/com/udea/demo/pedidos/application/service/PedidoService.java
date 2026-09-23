@@ -174,7 +174,7 @@ public class PedidoService implements PedidoServiceI {
         actores.operadorActualId();
         Pedido p = pedidos.findByIdForUpdate(id).orElseThrow(() -> new PedidoNoEncontradoException(id));
         if (p.getNumeroTracking() == null) throw new com.udea.demo.pedidos.domain.exception.TrackingNoActivoException(id);
-        // Generar primero: si el PDF falla, no se marca falsamente como impreso.
+
         String contenido = etiquetas.generar(p);
         p.confirmarImpresionEtiqueta();
         pedidos.save(p);

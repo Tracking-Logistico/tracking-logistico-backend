@@ -53,7 +53,7 @@ public class ClienteService implements ClienteServiceI {
         this.passwordPolicyService = passwordPolicyService;
     }
 
-    @Override 
+    @Override
     @Transactional
     public ClienteResponseDTO registrarCliente(RegistroClienteRequestDTO dto) {
         if (!dto.password().equals(dto.confirmarPassword())) {
@@ -111,7 +111,7 @@ public class ClienteService implements ClienteServiceI {
                 && Boolean.TRUE.equals(usuario.getActivo())
                 && usuario.getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION).ifPresent(usuario -> {
             var anterior = tokenRepository.findByUsuarioId(usuario.getId());
-            // Intervalo mínimo de un minuto para no amplificar solicitudes repetidas.
+
             if (anterior.isPresent() && anterior.get().getFechaExpiracion().minusHours(2)
                     .isAfter(LocalDateTime.now().minusMinutes(1))) return;
             TokenVerificacion verificacion = anterior.orElseGet(() -> TokenVerificacion.builder().usuario(usuario).build());
@@ -172,7 +172,7 @@ public class ClienteService implements ClienteServiceI {
         usuarioRepository.save(usuario);
     }
 
-    @Override 
+    @Override
     @Transactional
     public UsuarioResponseDTO actualizarPerfil(Long id, ActualizarPerfilRequestDTO dto) {
         Usuario usuario = usuarioRepository.findById(id)
@@ -192,7 +192,6 @@ public class ClienteService implements ClienteServiceI {
         u.setEstado(EstadoUsuario.INACTIVO);
         usuarioRepository.save(u);
     }
-
 
     private UsuarioResponseDTO actualizarUsuario(Usuario usuario, ActualizarPerfilRequestDTO dto) {
         usuario.setNombre(dto.nombre());

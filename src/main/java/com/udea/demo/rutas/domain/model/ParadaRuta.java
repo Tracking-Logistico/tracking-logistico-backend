@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 
-// Solo la raíz del agregado (Ruta) puede crear o mutar una parada: fábrica y mutadores package-private
 @Entity
 @Table(name = "paradas_ruta")
 public class ParadaRuta {
@@ -48,7 +47,6 @@ public class ParadaRuta {
     void actualizarOrden(int nuevoOrden) {
         this.orden = nuevoOrden;
     }
-
 
     public ParadaRuta() {}
     public ParadaRuta(Long id, Ruta ruta, Long pedidoId, Integer orden, EstadoParada estado, LocalDateTime fechaAsignacion) {

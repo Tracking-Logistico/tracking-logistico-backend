@@ -9,7 +9,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import org.springframework.beans.factory.annotation.Value;
 
-// Pure Fabrication (GRASP): encapsula la búsqueda o apertura de la ruta del día de un conductor
 @Component
 public class GestorRutaActiva {
 

@@ -95,7 +95,6 @@ public class Pedido {
         this.estado = aprobar ? EstadoPedido.SOLICITADO : EstadoPedido.RECHAZADO;
     }
 
-    // Compatibilidad de llamadas internas: el endpoint público exige justificación explícita.
     public void validar(boolean aprobar, Prioridad prioridadSolicitada, String observaciones, Long operadorId) {
         String justificacion = prioridadSolicitada != null && prioridadSolicitada != prioridadSugerida
                 ? "Ajuste de prioridad" : null;
@@ -139,7 +138,6 @@ public class Pedido {
         this.etiquetaImpresa = true;
         this.fechaImpresionEtiqueta = LocalDateTime.now();
     }
-
 
     public Pedido() {}
     public Pedido(Long id, String numeroPedido, Long clienteId, String direccionOrigen, String direccionDestino, String descripcionPaquete, String ciudadOrigen, String codigoPostalOrigen, String ciudadDestino, String codigoPostalDestino, String remitenteNombre, String remitenteEmail, String remitenteTelefono, Long version, String destinatarioNombre, String destinatarioTelefono, Double pesoKg, Double largoCm, Double anchoCm, Double altoCm, TipoServicio tipoServicio, Prioridad prioridadSugerida, Prioridad prioridadConfirmada, EstadoPedido estado, String observacionesValidacion, String justificacionPrioridad, Long operadorValidadorId, LocalDateTime fechaCreacion, LocalDateTime fechaValidacion, String numeroTracking, LocalDateTime fechaActivacionTracking, Boolean etiquetaImpresa, LocalDateTime fechaImpresionEtiqueta) {

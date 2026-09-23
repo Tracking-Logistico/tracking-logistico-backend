@@ -100,7 +100,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("Autentica a un CLIENTE en tiempo < 2s, emite tokens, expiración 30 min y redirige a /panel/cliente")
         void loginExitoso_cliente() {
-            // Arrange
+
             String email = "cliente@correo.com";
             Usuario cliente = crearUsuario(1L, email, Rol.CLIENTE, EstadoUsuario.ACTIVO, true);
             LoginRequestDTO request = new LoginRequestDTO(email, RAW_PASSWORD);
@@ -110,12 +110,10 @@ class AutenticacionServiceTest {
             when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(cliente));
             when(passwordEncoder.matches(RAW_PASSWORD, ENCODED_PASSWORD)).thenReturn(true);
 
-            // Act & Assert (Tiempo menor a 2 segundos según percentil 95)
             LoginResponseDTO response = assertTimeoutPreemptively(Duration.ofSeconds(2), () ->
                     autenticacionService.iniciarSesion(request, IP_ORIGEN, USER_AGENT)
             );
 
-            // Assert de retorno
             assertThat(response).isNotNull();
             assertThat(response.accessToken()).isNotBlank();
             assertThat(response.refreshToken()).isNotBlank();
@@ -127,7 +125,6 @@ class AutenticacionServiceTest {
             assertThat(response.refreshTokenExpiresAt())
                     .isAfter(LocalDateTime.now().plusDays(6));
 
-            // Assert de persistencia de sesión
             ArgumentCaptor<SesionUsuario> sesionCaptor = ArgumentCaptor.forClass(SesionUsuario.class);
             verify(sesionRepository).save(sesionCaptor.capture());
             SesionUsuario sesionGuardada = sesionCaptor.getValue();
@@ -136,7 +133,6 @@ class AutenticacionServiceTest {
             assertThat(sesionGuardada.getRefreshTokenHash()).isNotBlank();
             assertThat(sesionGuardada.getRevokedAt()).isNull();
 
-            // Verifica reinicio del contador de intentos fallidos
             verify(intentoRepository).deleteByEmail(email);
         }
 
@@ -160,7 +156,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("Autentica a un OPERADOR con expiración de 15 min y redirige a /panel/operador")
         void loginExitoso_operador() {
-            // Arrange
+
             String email = "operador@tracking.com";
             Usuario operador = crearUsuario(2L, email, Rol.OPERADOR, EstadoUsuario.ACTIVO, true);
             LoginRequestDTO request = new LoginRequestDTO(email, RAW_PASSWORD);
@@ -170,10 +166,8 @@ class AutenticacionServiceTest {
             when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(operador));
             when(passwordEncoder.matches(RAW_PASSWORD, ENCODED_PASSWORD)).thenReturn(true);
 
-            // Act
             LoginResponseDTO response = autenticacionService.iniciarSesion(request, IP_ORIGEN, USER_AGENT);
 
-            // Assert
             assertThat(response.rol()).isEqualTo(Rol.OPERADOR);
             assertThat(response.panel()).isEqualTo("/panel/operador");
             assertThat(response.accessTokenExpiresAt())
@@ -185,7 +179,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("Autentica a un CONDUCTOR con expiración de 15 min y redirige a /panel/conductor")
         void loginExitoso_conductor() {
-            // Arrange
+
             String email = "conductor@tracking.com";
             Usuario conductor = crearUsuario(3L, email, Rol.CONDUCTOR, EstadoUsuario.ACTIVO, true);
             LoginRequestDTO request = new LoginRequestDTO(email, RAW_PASSWORD);
@@ -195,10 +189,8 @@ class AutenticacionServiceTest {
             when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(conductor));
             when(passwordEncoder.matches(RAW_PASSWORD, ENCODED_PASSWORD)).thenReturn(true);
 
-            // Act
             LoginResponseDTO response = autenticacionService.iniciarSesion(request, IP_ORIGEN, USER_AGENT);
 
-            // Assert
             assertThat(response.rol()).isEqualTo(Rol.CONDUCTOR);
             assertThat(response.panel()).isEqualTo("/panel/conductor");
             verify(intentoRepository).deleteByEmail(email);
@@ -212,7 +204,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("Contraseña incorrecta lanza CredencialesInvalidasException con mensaje genérico")
         void passwordIncorrecta_lanzaExcepcionGenerica() {
-            // Arrange
+
             String email = "cliente@correo.com";
             Usuario cliente = crearUsuario(1L, email, Rol.CLIENTE, EstadoUsuario.ACTIVO, true);
             LoginRequestDTO request = new LoginRequestDTO(email, "WrongPassword!");
@@ -223,12 +215,10 @@ class AutenticacionServiceTest {
             when(passwordEncoder.matches("WrongPassword!", ENCODED_PASSWORD)).thenReturn(false);
             when(intentoRepository.countByEmailAndIntentadoEnAfter(eq(email), any(LocalDateTime.class))).thenReturn(0L);
 
-            // Act & Assert
             assertThatThrownBy(() -> autenticacionService.iniciarSesion(request, IP_ORIGEN, USER_AGENT))
                     .isInstanceOf(CredencialesInvalidasException.class)
                     .hasMessage("Usuario o contraseña incorrectos");
 
-            // Verifica registro de intento fallido
             verify(intentoRepository).save(any(IntentoInicioSesion.class));
             verify(sesionRepository, never()).save(any(SesionUsuario.class));
         }
@@ -236,7 +226,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("Usuario no existente lanza CredencialesInvalidasException con mensaje genérico idéntico")
         void usuarioNoExiste_lanzaExcepcionGenerica() {
-            // Arrange
+
             String email = "noexiste@correo.com";
             LoginRequestDTO request = new LoginRequestDTO(email, RAW_PASSWORD);
 
@@ -245,12 +235,10 @@ class AutenticacionServiceTest {
             when(usuarioRepository.findByEmail(email)).thenReturn(Optional.empty());
             when(intentoRepository.countByEmailAndIntentadoEnAfter(eq(email), any(LocalDateTime.class))).thenReturn(1L);
 
-            // Act & Assert
             assertThatThrownBy(() -> autenticacionService.iniciarSesion(request, IP_ORIGEN, USER_AGENT))
                     .isInstanceOf(CredencialesInvalidasException.class)
                     .hasMessage("Usuario o contraseña incorrectos");
 
-            // Verifica registro del intento de fallo sin enumeración
             verify(intentoRepository).save(any(IntentoInicioSesion.class));
             verify(passwordEncoder, never()).matches(anyString(), anyString());
         }
@@ -258,7 +246,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("Usuario inactivo o no verificado lanza CredencialesInvalidasException")
         void usuarioInactivo_lanzaCredencialesInvalidas() {
-            // Arrange
+
             String email = "inactivo@correo.com";
             Usuario usuarioInactivo = crearUsuario(4L, email, Rol.CLIENTE, EstadoUsuario.INACTIVO, false);
             LoginRequestDTO request = new LoginRequestDTO(email, RAW_PASSWORD);
@@ -268,7 +256,6 @@ class AutenticacionServiceTest {
             when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(usuarioInactivo));
             when(intentoRepository.countByEmailAndIntentadoEnAfter(eq(email), any(LocalDateTime.class))).thenReturn(0L);
 
-            // Act & Assert
             assertThatThrownBy(() -> autenticacionService.iniciarSesion(request, IP_ORIGEN, USER_AGENT))
                     .isInstanceOf(CredencialesInvalidasException.class)
                     .hasMessage("Usuario o contraseña incorrectos");
@@ -284,7 +271,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("Acumular 5 intentos fallidos consecutivos en 10 min bloquea por 15 min")
         void acumula5IntentosFallidos_bloqueaCuenta() {
-            // Arrange
+
             String email = "atacante@correo.com";
             Usuario usuario = crearUsuario(5L, email, Rol.CLIENTE, EstadoUsuario.ACTIVO, true);
             LoginRequestDTO request = new LoginRequestDTO(email, "BadPass!");
@@ -293,10 +280,9 @@ class AutenticacionServiceTest {
                     .thenReturn(null);
             when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(usuario));
             when(passwordEncoder.matches("BadPass!", ENCODED_PASSWORD)).thenReturn(false);
-            // 4 intentos previos + 1 actual = 5 intentos -> se activa el bloqueo
+
             when(intentoRepository.countByEmailAndIntentadoEnAfter(eq(email), any(LocalDateTime.class))).thenReturn(4L);
 
-            // Act & Assert
             assertThatThrownBy(() -> autenticacionService.iniciarSesion(request, IP_ORIGEN, USER_AGENT))
                     .isInstanceOf(CuentaBloqueadaLoginException.class)
                     .hasMessageMatching("Cuenta bloqueada temporalmente\\. Intenta nuevamente en (14|15) minutos");
@@ -313,7 +299,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("Si la cuenta ya está bloqueada actualmente, se rechaza de inmediato sin evaluar password")
         void cuentaYaBloqueada_rechazoInmediato() {
-            // Arrange
+
             String email = "bloqueado@correo.com";
             LocalDateTime bloqueadoHasta = LocalDateTime.now().plusMinutes(10);
             IntentoInicioSesion bloqueoPrevio = new IntentoInicioSesion(email, null, LocalDateTime.now(), bloqueadoHasta);
@@ -322,7 +308,6 @@ class AutenticacionServiceTest {
             when(intentoRepository.findFirstByEmailAndBloqueadoHastaAfterOrderByBloqueadoHastaDesc(eq(email), any(LocalDateTime.class)))
                     .thenReturn(bloqueoPrevio);
 
-            // Act & Assert
             assertThatThrownBy(() -> autenticacionService.iniciarSesion(request, IP_ORIGEN, USER_AGENT))
                     .isInstanceOf(CuentaBloqueadaLoginException.class)
                     .hasMessageContaining("Cuenta bloqueada temporalmente");
@@ -339,7 +324,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("renovarSesion() con refresh token válido crea nueva sesión y revoca la anterior")
         void renovarSesion_exitoso() {
-            // Arrange
+
             String refreshToken = "valid-refresh-token-123";
             String tokenHash = AutenticacionService.hash(refreshToken);
             Usuario usuario = crearUsuario(6L, "renovador@mail.com", Rol.OPERADOR, EstadoUsuario.ACTIVO, true);
@@ -349,39 +334,34 @@ class AutenticacionServiceTest {
                     usuario,
                     "old-access-hash",
                     tokenHash,
-                    ahora.minusMinutes(5), // access token expirado
-                    ahora.plusDays(3),     // refresh token aún vigente
+                    ahora.minusMinutes(5),
+                    ahora.plusDays(3),
                     ahora.minusMinutes(10)
             );
 
             when(sesionRepository.findByRefreshTokenHash(tokenHash)).thenReturn(Optional.of(sesionExistente));
 
-            // Act
             LoginResponseDTO nuevaRespuesta = autenticacionService.renovarSesion(new RefreshTokenRequestDTO(refreshToken));
 
-            // Assert
             assertThat(nuevaRespuesta).isNotNull();
             assertThat(nuevaRespuesta.accessToken()).isNotBlank();
             assertThat(nuevaRespuesta.refreshToken()).isNotBlank();
             assertThat(nuevaRespuesta.rol()).isEqualTo(Rol.OPERADOR);
             assertThat(nuevaRespuesta.panel()).isEqualTo("/panel/operador");
 
-            // Verifica que la sesión anterior quedó marcada como revocada
             assertThat(sesionExistente.getRevokedAt()).isNotNull();
 
-            // Verifica que se guardó la nueva sesión
             verify(sesionRepository).save(any(SesionUsuario.class));
         }
 
         @Test
         @DisplayName("renovarSesion() con token no existente lanza SesionInvalidaException")
         void renovarSesion_tokenNoExiste() {
-            // Arrange
+
             String token = "no-existe";
             when(sesionRepository.findByRefreshTokenHash(AutenticacionService.hash(token)))
                     .thenReturn(Optional.empty());
 
-            // Act & Assert
             assertThatThrownBy(() -> autenticacionService.renovarSesion(new RefreshTokenRequestDTO(token)))
                     .isInstanceOf(SesionInvalidaException.class);
         }
@@ -389,7 +369,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("renovarSesion() con sesión ya revocada o expirada lanza SesionInvalidaException")
         void renovarSesion_revocadaOExpirada() {
-            // Arrange
+
             String token = "token-revocado";
             Usuario usuario = crearUsuario(7L, "revocado@mail.com", Rol.CLIENTE, EstadoUsuario.ACTIVO, true);
             SesionUsuario sesionRevocada = new SesionUsuario(
@@ -401,7 +381,6 @@ class AutenticacionServiceTest {
             when(sesionRepository.findByRefreshTokenHash(AutenticacionService.hash(token)))
                     .thenReturn(Optional.of(sesionRevocada));
 
-            // Act & Assert
             assertThatThrownBy(() -> autenticacionService.renovarSesion(new RefreshTokenRequestDTO(token)))
                     .isInstanceOf(SesionInvalidaException.class);
         }
@@ -409,7 +388,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("cerrarSesion() invalida la sesión en el servidor asignando revokedAt")
         void cerrarSesion_exitoso() {
-            // Arrange
+
             String accessToken = "active-access-token";
             String tokenHash = AutenticacionService.hash(accessToken);
             Usuario usuario = crearUsuario(8L, "saliente@mail.com", Rol.CLIENTE, EstadoUsuario.ACTIVO, true);
@@ -420,10 +399,8 @@ class AutenticacionServiceTest {
 
             when(sesionRepository.findByAccessTokenHash(tokenHash)).thenReturn(Optional.of(sesion));
 
-            // Act
             autenticacionService.cerrarSesion(accessToken);
 
-            // Assert
             assertThat(sesion.getRevokedAt()).isNotNull();
             verify(sesionRepository).save(sesion);
         }
@@ -446,17 +423,15 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("solicitarRestablecimiento() con usuario existente genera token de 45 min y envía correo")
         void solicitarRestablecimiento_usuarioExiste() {
-            // Arrange
+
             String email = "olvido@mail.com";
             Usuario usuario = crearUsuario(9L, email, Rol.CLIENTE, EstadoUsuario.ACTIVO, true);
             SolicitarRestablecimientoPasswordDTO dto = new SolicitarRestablecimientoPasswordDTO(email);
 
             when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(usuario));
 
-            // Act
             autenticacionService.solicitarRestablecimiento(dto);
 
-            // Assert
             verify(resetRepository).deleteByUsuarioId(usuario.getId());
 
             ArgumentCaptor<TokenRestablecimientoPassword> tokenCaptor =
@@ -475,15 +450,13 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("solicitarRestablecimiento() con usuario inexistente no envía correo ni expone error")
         void solicitarRestablecimiento_usuarioNoExiste() {
-            // Arrange
+
             String email = "fantasma@mail.com";
             SolicitarRestablecimientoPasswordDTO dto = new SolicitarRestablecimientoPasswordDTO(email);
             when(usuarioRepository.findByEmail(email)).thenReturn(Optional.empty());
 
-            // Act
             autenticacionService.solicitarRestablecimiento(dto);
 
-            // Assert
             verify(resetRepository, never()).deleteByUsuarioId(any());
             verify(resetRepository, never()).save(any());
             verify(emailService, never()).enviarEnlaceRestablecimiento(anyString(), anyString());
@@ -502,11 +475,11 @@ class AutenticacionServiceTest {
 
         @ParameterizedTest
         @ValueSource(strings = {
-                "corta1!",            // Menos de 8 caracteres
-                "solominusculas1!",   // Sin mayúscula
-                "SOLOMAYUSCULAS1!",   // Sin minúscula
-                "SinNumerosEspecial!",// Sin número
-                "SinEspecial123"      // Sin carácter especial
+                "corta1!",
+                "solominusculas1!",
+                "SOLOMAYUSCULAS1!",
+                "SinNumerosEspecial!",
+                "SinEspecial123"
         })
         @DisplayName("restablecerPassword() falla si la nueva contraseña es débil")
         void restablecerPassword_passwordDebil(String passwordDebil) {
@@ -522,19 +495,18 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("restablecerPassword() falla si el token es inexistente o expirado")
         void restablecerPassword_tokenExpirado() {
-            // Arrange
+
             String rawToken = "token-expirado";
             String tokenHash = AutenticacionService.hash(rawToken);
             Usuario usuario = crearUsuario(10L, "expirado@mail.com", Rol.CLIENTE, EstadoUsuario.ACTIVO, true);
             TokenRestablecimientoPassword token = new TokenRestablecimientoPassword(
-                    tokenHash, usuario, LocalDateTime.now().minusMinutes(5) // expirado
+                    tokenHash, usuario, LocalDateTime.now().minusMinutes(5)
             );
 
             when(resetRepository.findByTokenHash(tokenHash)).thenReturn(Optional.of(token));
 
             RestablecerPasswordDTO dto = new RestablecerPasswordDTO(rawToken, "NuevaPass123!", "NuevaPass123!");
 
-            // Act & Assert
             assertThatThrownBy(() -> autenticacionService.restablecerPassword(dto))
                     .isInstanceOf(TokenRestablecimientoInvalidoException.class);
 
@@ -544,7 +516,7 @@ class AutenticacionServiceTest {
         @Test
         @DisplayName("restablecerPassword() exitoso actualiza contraseña, invalida sesiones previas y marca token usado")
         void restablecerPassword_exitoso() {
-            // Arrange
+
             String rawToken = "token-valido";
             String tokenHash = AutenticacionService.hash(rawToken);
             Usuario usuario = crearUsuario(11L, "cambio@mail.com", Rol.CLIENTE, EstadoUsuario.ACTIVO, true);
@@ -557,19 +529,16 @@ class AutenticacionServiceTest {
 
             RestablecerPasswordDTO dto = new RestablecerPasswordDTO(rawToken, "NuevaPass123!", "NuevaPass123!");
 
-            // Act
             autenticacionService.restablecerPassword(dto);
 
-            // Assert
             assertThat(usuario.getPassword()).isEqualTo("$2a$10$encodedNewPassword");
             verify(usuarioRepository).save(usuario);
 
             assertThat(token.getUsadoEn()).isNotNull();
             verify(resetRepository).save(token);
 
-            // Invalida todas las sesiones activas previas
             verify(sesionRepository).deleteByUsuarioId(usuario.getId());
-            // Reinicia intentos
+
             verify(intentoRepository).deleteByEmail(usuario.getEmail());
         }
     }

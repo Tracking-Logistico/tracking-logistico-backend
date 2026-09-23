@@ -117,8 +117,7 @@ public class RutaService implements RutaServiceI {
             throw new IllegalStateException("Solo se pueden reasignar envíos en reparto");
         validarCapacidad(destino, nuevo, pedido);
         actual.getRuta().cancelarParada(dto.pedidoId());
-        // Materializa primero la cancelación para liberar el índice UNIQUE parcial
-        // antes de insertar una parada PENDIENTE para el mismo pedido.
+
         rutas.saveAndFlush(actual.getRuta());
         destino.agregarParada(dto.pedidoId());
         priorizarAltas(destino);
@@ -133,7 +132,6 @@ public class RutaService implements RutaServiceI {
                 .orElseThrow(() -> RutaNoEncontradaException.paraConductor(conductorUsuarioId));
         return map(ruta);
     }
-
 
     private void priorizarAltas(Ruta ruta) {
         List<Long> orden = ruta.getParadas().stream()

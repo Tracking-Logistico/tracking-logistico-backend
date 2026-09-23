@@ -14,7 +14,6 @@ public class Conductor {
     @Column(name = "capacidad_max_volumen_cm3", nullable = false) private Double capacidadMaxVolumenCm3 = 2_000_000.0;
     @Column(name = "max_entregas_dia", nullable = false) private Integer maxEntregasDia = 20;
 
-
     public Conductor() {}
     public Conductor(Long id, Usuario usuario, String licencia, String estado, Double capacidadMaxKg, Double capacidadMaxVolumenCm3, Integer maxEntregasDia) {
         this.id = id;

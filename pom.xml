@@ -9,7 +9,7 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>4.1.1</version>
-		<relativePath /> <!-- lookup parent from repository -->
+		<relativePath />
 	</parent>
 	<groupId>com.udea</groupId>
 	<artifactId>demo</artifactId>
@@ -141,7 +141,6 @@
                 <goal>report</goal>
             </goals>
         </execution>
-		<!-- Regla personalizada para validar el 65% de cobertura -->
                     <execution>
                         <id>check</id>
                         <goals>

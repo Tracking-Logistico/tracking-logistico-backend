@@ -34,14 +34,12 @@ class RefreshTokenRequestDTOTest {
         @Test
         @DisplayName("Token no vacío no genera violaciones")
         void tokenValido_sinViolaciones() {
-            // Arrange
+
             String token = "sample-refresh-token-123456";
             RefreshTokenRequestDTO dto = new RefreshTokenRequestDTO(token);
 
-            // Act
             Set<ConstraintViolation<RefreshTokenRequestDTO>> violations = validator.validate(dto);
 
-            // Assert
             assertThat(violations).isEmpty();
             assertThat(dto.refreshToken()).isEqualTo(token);
         }
@@ -56,13 +54,11 @@ class RefreshTokenRequestDTOTest {
         @ValueSource(strings = {"   ", "\t", "\n"})
         @DisplayName("RefreshToken nulo o en blanco produce violación @NotBlank")
         void refreshTokenEnBlanco_produceViolacion(String tokenInvalido) {
-            // Arrange
+
             RefreshTokenRequestDTO dto = new RefreshTokenRequestDTO(tokenInvalido);
 
-            // Act
             Set<ConstraintViolation<RefreshTokenRequestDTO>> violations = validator.validate(dto);
 
-            // Assert
             assertThat(violations).isNotEmpty();
             assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("refreshToken"));
         }

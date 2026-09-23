@@ -25,7 +25,6 @@ public class TokenVerificacion {
         return LocalDateTime.now().isAfter(fechaExpiracion);
     }
 
-
     public TokenVerificacion() {}
     public TokenVerificacion(Long id, String token, Usuario usuario, LocalDateTime fechaExpiracion) {
         this.id = id;

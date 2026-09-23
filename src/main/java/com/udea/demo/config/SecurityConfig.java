@@ -28,9 +28,6 @@ public class SecurityConfig {
         this.dbaApiKeyAuthenticationFilter = dbaApiKeyAuthenticationFilter;
     }
 
-    // Son filtros de Spring Security, no filtros globales del contenedor servlet.
-    // Registrarlos dos veces puede perder el SecurityContext y producir 403
-    // incluso con un Bearer válido.
     @Bean
     public FilterRegistrationBean<SesionAuthenticationFilter> sesionFilterRegistration() {
         var registration = new FilterRegistrationBean<>(sesionAuthenticationFilter);
@@ -53,7 +50,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // Stateless Bearer authentication; no cookie-based login.
+            .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
             .sessionManagement(session -> session.sessionCreationPolicy(

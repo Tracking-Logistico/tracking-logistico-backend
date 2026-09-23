@@ -1,6 +1,5 @@
 package com.udea.demo.usuarios.domain.model;
 
-
 import jakarta.persistence.*;
 
 @Entity
@@ -17,7 +16,6 @@ public class Cliente {
     private Usuario usuario;
 
     private String ciudad;
-
 
     public Cliente() {}
     public Cliente(Long id, Usuario usuario, String ciudad) {

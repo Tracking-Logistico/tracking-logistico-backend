@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 public class ClienteController {
 
     private final ClienteServiceI clienteService;
-    
 
     public ClienteController(ClienteServiceI usuarioService) {
         this.clienteService = usuarioService;
@@ -76,6 +75,5 @@ public class ClienteController {
         clienteService.desactivarCuentaCliente(id);
         return ResponseEntity.noContent().build();
     }
-
 
 }

@@ -36,7 +36,6 @@ public class RutaController {
         this.registro = registro;
     }
 
-    // Criterio 1: Visualización de envíos pendientes de asignación
     @GetMapping("/envios-pendientes")
     public ResponseEntity<List<PedidoResponseDTO>> listarEnviosPendientes() {
         return ResponseEntity.ok(rutaService.listarEnviosPendientesDeAsignacion());
@@ -47,7 +46,6 @@ public class RutaController {
         return ResponseEntity.ok(rutaService.listarConductoresDisponibles());
     }
 
-    // Criterio 2: Asignación de envíos a un conductor
     @PostMapping("/asignaciones")
     public ResponseEntity<RutaResponseDTO> asignarEnvio(@Valid @RequestBody AsignarEnvioRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(rutaService.asignarEnvio(dto));
@@ -81,13 +79,11 @@ public class RutaController {
         return ResponseEntity.ok(registro.historial(pedidoId));
     }
 
-    // Consulta de apoyo para revisar la ruta antes de organizarla
     @GetMapping("/conductores/{conductorId}")
     public ResponseEntity<RutaResponseDTO> obtenerRutaDeConductor(@PathVariable Long conductorId) {
         return ResponseEntity.ok(rutaService.obtenerRutaActivaDeConductor(conductorId));
     }
 
-    // Criterio 3: Organización de la ruta
     @PutMapping("/{rutaId}/orden")
     public ResponseEntity<RutaResponseDTO> reordenarRuta(
             @PathVariable Long rutaId,
@@ -95,7 +91,6 @@ public class RutaController {
         return ResponseEntity.ok(rutaService.reordenarRuta(rutaId, dto));
     }
 
-    // Criterio 4: Reasignación de envíos
     @PutMapping("/asignaciones/reasignar")
     public ResponseEntity<RutaResponseDTO> reasignarEnvio(@Valid @RequestBody ReasignarEnvioRequestDTO dto) {
         return ResponseEntity.ok(rutaService.reasignarEnvio(dto));

@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-// Information Expert: la ruta del día de un conductor protege el armado y reordenamiento de sus paradas
 @Entity
 @Table(name = "rutas")
 public class Ruta {
@@ -37,7 +36,6 @@ public class Ruta {
     @OneToMany(mappedBy = "ruta", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ParadaRuta> paradas = new ArrayList<>();
 
-    // Factory method (GRASP Creator): abre la ruta del día para un conductor
     public static Ruta crear(Long conductorId, LocalDate fecha) {
         return Ruta.builder()
                 .conductorId(conductorId)
@@ -70,7 +68,6 @@ public class Ruta {
         for (int i = 0; i < activas.size(); i++) activas.get(i).actualizarOrden(i + 1);
     }
 
-    // Organización de la ruta: aplica el orden indicado por el operador a las paradas activas
     public void reordenar(List<Long> pedidoIdsEnOrden) {
         aplicarOrden(pedidoIdsEnOrden);
         this.ordenManual = true;
@@ -100,7 +97,6 @@ public class Ruta {
                     .ifPresent(p -> p.actualizarOrden(ordenFinal));
         }
     }
-
 
     public Ruta() {}
     public Ruta(Long id, Long conductorId, LocalDate fecha, LocalDateTime fechaCreacion, boolean ordenManual, List<ParadaRuta> paradas) {

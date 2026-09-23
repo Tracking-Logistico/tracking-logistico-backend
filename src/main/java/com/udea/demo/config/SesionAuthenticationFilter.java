@@ -37,8 +37,7 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = bearer(request);
-        // En administración, una API key DBA válida prevalece incluso si el cliente
-        // también envía accidentalmente un Bearer de usuario en la misma solicitud.
+
         boolean adminConApiKey = request.getRequestURI().startsWith("/api/v1/admin/")
                 && SecurityContextHolder.getContext().getAuthentication() != null
                 && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
@@ -59,7 +58,7 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
                                 && sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION));
                 if (vigente) {
                     sesion.setLastActivityAt(ahora);
-                    // Rolling inactivity expiration without changing the Bearer token or the API contract.
+
                     LocalDateTime limite = ahora.plusMinutes(minutosInactividad);
                     if (limite.isAfter(sesion.getRefreshTokenExpiresAt())) {
                         limite = sesion.getRefreshTokenExpiresAt();

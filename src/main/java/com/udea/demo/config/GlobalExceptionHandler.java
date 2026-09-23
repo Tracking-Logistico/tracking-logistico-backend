@@ -3,8 +3,6 @@ package com.udea.demo.config;
 import com.udea.demo.usuarios.domain.exception.EntregaCorreoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,7 +17,6 @@ import java.util.LinkedHashMap;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.util.Map;
 
-@Order(Ordered.LOWEST_PRECEDENCE)
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -42,6 +39,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> forbidden(AccessDeniedException ex) {
+        log.warn("Autorización de negocio denegada: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", "No tienes permiso para realizar esta acción"));
     }

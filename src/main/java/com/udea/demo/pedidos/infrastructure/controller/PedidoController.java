@@ -3,12 +3,14 @@ package com.udea.demo.pedidos.infrastructure.controller;
 import com.udea.demo.pedidos.application.dto.*;
 import com.udea.demo.pedidos.interfaces.services.PedidoServiceI;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@SecurityRequirement(name = "bearerAuth")
 @RequestMapping("/api/v1/pedidos")
 public class PedidoController {
     private final PedidoServiceI pedidoService;

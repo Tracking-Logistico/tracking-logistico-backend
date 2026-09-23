@@ -14,6 +14,7 @@ import com.udea.demo.rutas.interfaces.services.RutaServiceI;
 import com.udea.demo.usuarios.application.service.ActorAuthorizationService;
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@SecurityRequirement(name = "bearerAuth")
 @RequestMapping("/api/v1/rutas")
 public class RutaController {
 

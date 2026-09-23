@@ -7,12 +7,14 @@ import com.udea.demo.usuarios.domain.model.Rol;
 import com.udea.demo.usuarios.interfaces.persistence.UsuarioRepository;
 import com.udea.demo.usuarios.interfaces.services.UsuarioInternoServiceI;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
+@SecurityRequirement(name = "dbaApiKey")
 @RequestMapping("/api/v1/admin/usuarios")
 public class AdministracionUsuariosController {
     private final UsuarioRepository usuarios;
@@ -35,9 +37,6 @@ public class AdministracionUsuariosController {
     @PatchMapping("/{id}/rol")
     public ResponseEntity<UsuarioResponseDTO> actualizarRol(@PathVariable Long id,
             @Valid @RequestBody ActualizarRolUsuarioRequestDTO request) {
-        if (request.rol() != Rol.OPERADOR && request.rol() != Rol.CONDUCTOR) {
-            throw new IllegalArgumentException("Solo se puede asignar el rol OPERADOR o CONDUCTOR a usuarios internos");
-        }
         var command = new EditarUsuarioInternoCommand(null, null, null, request.rol(),
                 request.licencia(), request.codigoEmpleado());
         return ResponseEntity.ok(usuariosInternos.editar(id, command));

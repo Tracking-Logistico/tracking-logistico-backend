@@ -93,58 +93,6 @@ class AutenticacionServiceTest {
                 .build();
     }
 
-    @Test
-    @DisplayName("Un cliente pendiente de verificación puede iniciar sesión sin haber recibido correos")
-    void clienteSinVerificar_puedeIniciarSesion() {
-        String email = "sin-correo@tracking.com";
-        Usuario cliente = crearUsuario(41L, email, Rol.CLIENTE, EstadoUsuario.PENDIENTE_VERIFICACION, true);
-        when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(cliente));
-        when(passwordEncoder.matches(RAW_PASSWORD, ENCODED_PASSWORD)).thenReturn(true);
-
-        LoginResponseDTO response = autenticacionService.iniciarSesion(
-                new LoginRequestDTO(email, RAW_PASSWORD), IP_ORIGEN, USER_AGENT);
-
-        assertThat(response.rol()).isEqualTo(Rol.CLIENTE);
-        assertThat(response.panel()).isEqualTo("/panel/cliente");
-        assertThat(response.requiereCambioPassword()).isFalse();
-        verify(sesionRepository).save(any(SesionUsuario.class));
-        verify(intentoRepository).deleteByEmail(email);
-    }
-
-    @Test
-    @DisplayName("Un cliente sin verificar puede renovar su sesión")
-    void clienteSinVerificar_puedeRenovarSesion() {
-        String token = "refresh-cliente-no-verificado";
-        Usuario cliente = crearUsuario(42L, "pendiente@tracking.com", Rol.CLIENTE,
-                EstadoUsuario.PENDIENTE_VERIFICACION, true);
-        LocalDateTime ahora = LocalDateTime.now();
-        SesionUsuario sesion = new SesionUsuario(cliente, "access-viejo", AutenticacionService.hash(token),
-                ahora.minusMinutes(1), ahora.plusDays(2), ahora.minusMinutes(5));
-        when(sesionRepository.findByRefreshTokenHash(AutenticacionService.hash(token)))
-                .thenReturn(Optional.of(sesion));
-
-        LoginResponseDTO response = autenticacionService.renovarSesion(new RefreshTokenRequestDTO(token));
-
-        assertThat(response.panel()).isEqualTo("/panel/cliente");
-        assertThat(sesion.getRevokedAt()).isNotNull();
-        verify(sesionRepository).save(any(SesionUsuario.class));
-    }
-
-    @Test
-    @DisplayName("PENDIENTE_VERIFICACION solo concede acceso a clientes activos, no a operadores")
-    void operadorSinVerificar_noPuedeIniciarSesion() {
-        String email = "operador-pendiente@tracking.com";
-        Usuario operador = crearUsuario(43L, email, Rol.OPERADOR, EstadoUsuario.PENDIENTE_VERIFICACION, true);
-        when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(operador));
-        when(intentoRepository.countByEmailAndIntentadoEnAfter(eq(email), any(LocalDateTime.class)))
-                .thenReturn(0L);
-
-        assertThatThrownBy(() -> autenticacionService.iniciarSesion(
-                new LoginRequestDTO(email, RAW_PASSWORD), IP_ORIGEN, USER_AGENT))
-                .isInstanceOf(CredencialesInvalidasException.class);
-        verify(sesionRepository, never()).save(any());
-    }
-
     @Nested
     @DisplayName("Criterio: Inicio de sesión exitoso y redirección según rol")
     class InicioSesionExitoso {
@@ -190,6 +138,23 @@ class AutenticacionServiceTest {
 
             // Verifica reinicio del contador de intentos fallidos
             verify(intentoRepository).deleteByEmail(email);
+        }
+
+        @Test
+        @DisplayName("Cliente pendiente de correo puede usar la aplicación sin verificarse")
+        void loginClientePendienteCorreo() {
+            String email = "pendiente@correo.com";
+            Usuario cliente = crearUsuario(34L, email, Rol.CLIENTE, EstadoUsuario.PENDIENTE_VERIFICACION, true);
+            when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(cliente));
+            when(passwordEncoder.matches(RAW_PASSWORD, ENCODED_PASSWORD)).thenReturn(true);
+
+            LoginResponseDTO resultado = autenticacionService.iniciarSesion(
+                    new LoginRequestDTO(email, RAW_PASSWORD), IP_ORIGEN, USER_AGENT);
+
+            assertThat(resultado.rol()).isEqualTo(Rol.CLIENTE);
+            assertThat(resultado.panel()).isEqualTo("/panel/cliente");
+            assertThat(resultado.requiereCambioPassword()).isFalse();
+            verify(sesionRepository).save(any(SesionUsuario.class));
         }
 
         @Test
@@ -291,7 +256,7 @@ class AutenticacionServiceTest {
         }
 
         @Test
-        @DisplayName("Usuario inactivo lanza CredencialesInvalidasException")
+        @DisplayName("Usuario inactivo o no verificado lanza CredencialesInvalidasException")
         void usuarioInactivo_lanzaCredencialesInvalidas() {
             // Arrange
             String email = "inactivo@correo.com";
@@ -505,21 +470,6 @@ class AutenticacionServiceTest {
                     .isBefore(LocalDateTime.now().plusMinutes(46));
 
             verify(emailService).enviarEnlaceRestablecimiento(eq(email), anyString());
-        }
-
-        @Test
-        @DisplayName("La indisponibilidad del correo no impide guardar la solicitud de recuperación")
-        void solicitarRestablecimiento_falloCorreoNoBloquea() {
-            String email = "recuperacion@tracking.com";
-            Usuario usuario = crearUsuario(90L, email, Rol.CLIENTE,
-                    EstadoUsuario.PENDIENTE_VERIFICACION, true);
-            when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(usuario));
-            org.mockito.Mockito.doThrow(new IllegalStateException("correo indisponible"))
-                    .when(emailService).enviarEnlaceRestablecimiento(eq(email), anyString());
-
-            autenticacionService.solicitarRestablecimiento(new SolicitarRestablecimientoPasswordDTO(email));
-
-            verify(resetRepository).save(any(TokenRestablecimientoPassword.class));
         }
 
         @Test

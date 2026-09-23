@@ -1,5 +1,6 @@
 package com.udea.demo.usuarios.infrastructure.controller;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
@@ -28,6 +29,7 @@ public class AutenticacionController {
         return autenticacionService.renovarSesion(request);
     }
 
+    @SecurityRequirement(name = "bearerAuth")
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
         autenticacionService.cerrarSesion(extraerBearer(request));
@@ -37,7 +39,7 @@ public class AutenticacionController {
     @PostMapping("/password/forgot")
     public ResponseEntity<String> forgot(@Valid @RequestBody SolicitarRestablecimientoPasswordDTO request) {
         autenticacionService.solicitarRestablecimiento(request);
-        return ResponseEntity.ok("Si el correo existe, intentaremos enviar instrucciones para restablecer tu contraseña");
+        return ResponseEntity.ok("Si el correo existe, recibirás instrucciones para restablecer tu contraseña");
     }
 
     @PostMapping("/password/reset")

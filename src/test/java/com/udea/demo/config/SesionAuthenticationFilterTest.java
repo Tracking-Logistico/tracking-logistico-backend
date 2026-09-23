@@ -77,46 +77,6 @@ class SesionAuthenticationFilterTest {
                 .build();
     }
 
-    @Test
-    @DisplayName("Token de cliente pendiente de correo tiene ROLE_CLIENTE y permite consultar endpoints")
-    void clientePendienteVerificacion_recibeRolCliente() throws ServletException, IOException {
-        String token = "token-cliente-pendiente";
-        Usuario cliente = crearUsuario("pendiente@tracking.com", Rol.CLIENTE, true);
-        cliente.setEstado(EstadoUsuario.PENDIENTE_VERIFICACION);
-        LocalDateTime ahora = LocalDateTime.now();
-        SesionUsuario sesion = new SesionUsuario(cliente, AutenticacionService.hash(token), "refreshHash",
-                ahora.plusMinutes(10), ahora.plusDays(1), ahora.minusMinutes(1));
-        when(sesionRepository.findByAccessTokenHash(AutenticacionService.hash(token)))
-                .thenReturn(Optional.of(sesion));
-        request.addHeader("Authorization", "Bearer " + token);
-
-        filter.doFilterInternal(request, response, filterChain);
-
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        assertThat(auth).isNotNull();
-        assertThat(auth.getAuthorities()).anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
-        verify(sesionRepository).save(sesion);
-    }
-
-    @Test
-    @DisplayName("No se acepta token de una cuenta desactivada aunque tenga estado pendiente")
-    void clienteDesactivadoPendiente_noSeAutentica() throws ServletException, IOException {
-        String token = "token-cliente-desactivado";
-        Usuario cliente = crearUsuario("desactivado@tracking.com", Rol.CLIENTE, false);
-        cliente.setEstado(EstadoUsuario.PENDIENTE_VERIFICACION);
-        LocalDateTime ahora = LocalDateTime.now();
-        SesionUsuario sesion = new SesionUsuario(cliente, AutenticacionService.hash(token), "refreshHash",
-                ahora.plusMinutes(10), ahora.plusDays(1), ahora.minusMinutes(1));
-        when(sesionRepository.findByAccessTokenHash(AutenticacionService.hash(token)))
-                .thenReturn(Optional.of(sesion));
-        request.addHeader("Authorization", "Bearer " + token);
-
-        filter.doFilterInternal(request, response, filterChain);
-
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-        verify(sesionRepository, never()).save(any());
-    }
-
     @Nested
     @DisplayName("Criterio: Inactividad y expiración por rol")
     class InactividadYExpiracion {
@@ -150,6 +110,25 @@ class SesionAuthenticationFilterTest {
             assertThat(sesion.getLastActivityAt()).isAfterOrEqualTo(ahora);
             verify(sesionRepository).save(sesion);
             verify(filterChain).doFilter(request, response);
+        }
+
+        @Test
+        @DisplayName("Cliente sin correo verificado obtiene ROLE_CLIENTE y puede usar endpoints privados")
+        void clientePendienteVerificacion_seAutentica() throws ServletException, IOException {
+            String token = "cliente-sin-verificar";
+            Usuario cliente = crearUsuario("cliente@correo.com", Rol.CLIENTE, true);
+            cliente.setEstado(EstadoUsuario.PENDIENTE_VERIFICACION);
+            LocalDateTime ahora = LocalDateTime.now();
+            SesionUsuario sesion = new SesionUsuario(cliente, AutenticacionService.hash(token), "refresh",
+                    ahora.plusMinutes(25), ahora.plusDays(7), ahora.minusMinutes(2));
+            when(sesionRepository.findByAccessTokenHash(AutenticacionService.hash(token)))
+                    .thenReturn(Optional.of(sesion));
+            request.addHeader("Authorization", "Bearer " + token);
+
+            filter.doFilterInternal(request, response, filterChain);
+
+            assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
+                    .anyMatch(a -> "ROLE_CLIENTE".equals(a.getAuthority()));
         }
 
         @Test

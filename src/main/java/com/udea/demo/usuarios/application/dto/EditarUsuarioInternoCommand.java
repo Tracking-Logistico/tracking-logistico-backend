@@ -16,7 +16,7 @@ public record EditarUsuarioInternoCommand(
     @Size(max = 200, message = "La dirección no puede superar 200 caracteres")
     String direccion,
 
-    Rol rol,  // opcional, solo OPERADOR o CONDUCTOR
+    Rol rol,  // opcional: CLIENTE, OPERADOR o CONDUCTOR al editar
 
     @Size(max = 50, message = "La licencia no puede superar 50 caracteres")
     String licencia,

@@ -12,11 +12,13 @@ import com.udea.demo.usuarios.domain.exception.PasswordDebilException;
 import com.udea.demo.usuarios.domain.exception.PasswordNoCoincideException;
 import com.udea.demo.usuarios.domain.exception.RolInternoInvalidoException;
 import com.udea.demo.usuarios.domain.exception.UsuarioNoEncontradoException;
+import com.udea.demo.usuarios.domain.model.Cliente;
 import com.udea.demo.usuarios.domain.model.Conductor;
 import com.udea.demo.usuarios.domain.model.EstadoUsuario;
 import com.udea.demo.usuarios.domain.model.Operador;
 import com.udea.demo.usuarios.domain.model.Rol;
 import com.udea.demo.usuarios.domain.model.Usuario;
+import com.udea.demo.usuarios.interfaces.persistence.ClienteRepository;
 import com.udea.demo.usuarios.interfaces.persistence.ConductorRepository;
 import com.udea.demo.usuarios.interfaces.persistence.OperadorRepository;
 import com.udea.demo.usuarios.interfaces.persistence.UsuarioRepository;
@@ -47,6 +49,7 @@ class UsuarioInternoServiceTest {
     private static final String HASH = "$2a$10$internoHash";
 
     @Mock private UsuarioRepository usuarioRepository;
+    @Mock private ClienteRepository clienteRepository;
     @Mock private ConductorRepository conductorRepository;
     @Mock private OperadorRepository operadorRepository;
     @Mock private PasswordEncoder passwordEncoder;
@@ -240,8 +243,9 @@ class UsuarioInternoServiceTest {
             UsuarioResponseDTO dto = usuarioInternoService.editar(20L, cmd);
 
             assertThat(dto.rol()).isEqualTo(Rol.CONDUCTOR);
-            verify(operadorRepository).deleteByUsuarioId(20L);
+            verify(operadorRepository, never()).deleteByUsuarioId(20L);
             verify(conductorRepository).save(any(Conductor.class));
+            verify(sesionRepository).deleteByUsuarioId(20L);
         }
 
         @Test
@@ -258,8 +262,9 @@ class UsuarioInternoServiceTest {
             UsuarioResponseDTO dto = usuarioInternoService.editar(21L, cmd);
 
             assertThat(dto.rol()).isEqualTo(Rol.OPERADOR);
-            verify(conductorRepository).deleteByUsuarioId(21L);
+            verify(conductorRepository, never()).deleteByUsuarioId(21L);
             verify(operadorRepository).save(any(Operador.class));
+            verify(sesionRepository).deleteByUsuarioId(21L);
         }
 
         @Test
@@ -281,14 +286,80 @@ class UsuarioInternoServiceTest {
         }
 
         @Test
-        @DisplayName("Reasignar a CLIENTE lanza RolInternoInvalidoException")
-        void reasignarACliente_invalido() {
-            when(usuarioRepository.findById(20L)).thenReturn(Optional.of(operadorPersistido()));
-            EditarUsuarioInternoCommand cmd = new EditarUsuarioInternoCommand(
-                    null, null, null, Rol.CLIENTE, null, null);
+        @DisplayName("Permite pasar de OPERADOR a CLIENTE conservando el operador histórico")
+        void reasignarACliente() {
+            Usuario usuario = operadorPersistido();
+            when(usuarioRepository.findById(20L)).thenReturn(Optional.of(usuario));
+            when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            assertThatThrownBy(() -> usuarioInternoService.editar(20L, cmd))
-                    .isInstanceOf(RolInternoInvalidoException.class);
+            UsuarioResponseDTO resultado = usuarioInternoService.editar(20L,
+                    new EditarUsuarioInternoCommand(null, null, null, Rol.CLIENTE, null, null));
+
+            assertThat(resultado.rol()).isEqualTo(Rol.CLIENTE);
+            verify(clienteRepository).save(any(Cliente.class));
+            verify(operadorRepository, never()).deleteByUsuarioId(20L);
+            verify(sesionRepository).deleteByUsuarioId(20L);
+        }
+
+        @Test
+        @DisplayName("Convierte CLIENTE sin verificar a OPERADOR y crea su fila operativa")
+        void promoverClienteAOperador() {
+            Usuario usuario = Usuario.builder().id(22L).rol(Rol.CLIENTE)
+                    .estado(EstadoUsuario.PENDIENTE_VERIFICACION).activo(true).build();
+            when(usuarioRepository.findById(22L)).thenReturn(Optional.of(usuario));
+            when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UsuarioResponseDTO resultado = usuarioInternoService.editar(22L,
+                    new EditarUsuarioInternoCommand(null, null, null, Rol.OPERADOR, null, "OP-022"));
+
+            assertThat(resultado.rol()).isEqualTo(Rol.OPERADOR);
+            assertThat(resultado.estado()).isEqualTo(EstadoUsuario.ACTIVO);
+            verify(operadorRepository).save(any(Operador.class));
+            verify(sesionRepository).deleteByUsuarioId(22L);
+        }
+
+        @Test
+        @DisplayName("Convierte CLIENTE a CONDUCTOR sin perder historial de pedidos")
+        void promoverClienteAConductor() {
+            Usuario usuario = Usuario.builder().id(23L).rol(Rol.CLIENTE)
+                    .estado(EstadoUsuario.ACTIVO).activo(true).build();
+            when(usuarioRepository.findById(23L)).thenReturn(Optional.of(usuario));
+            when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UsuarioResponseDTO resultado = usuarioInternoService.editar(23L,
+                    new EditarUsuarioInternoCommand(null, null, null, Rol.CONDUCTOR, "LIC-023", null));
+
+            assertThat(resultado.rol()).isEqualTo(Rol.CONDUCTOR);
+            verify(conductorRepository).save(any(Conductor.class));
+            verify(sesionRepository).deleteByUsuarioId(23L);
+        }
+
+        @Test
+        @DisplayName("Repara la fila OPERADOR ausente sin modificar el rol")
+        void repararOperadorSinFila() {
+            Usuario usuario = operadorPersistido();
+            when(usuarioRepository.findById(20L)).thenReturn(Optional.of(usuario));
+            when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            usuarioInternoService.editar(20L,
+                    new EditarUsuarioInternoCommand(null, null, null, Rol.OPERADOR, null, "OP-020"));
+
+            verify(operadorRepository).save(any(Operador.class));
+            verify(sesionRepository, never()).deleteByUsuarioId(20L);
+        }
+
+        @Test
+        @DisplayName("Cliente a conductor sin licencia devuelve validación y no cambia rol")
+        void clienteAConductorSinLicencia() {
+            Usuario usuario = Usuario.builder().id(23L).rol(Rol.CLIENTE)
+                    .estado(EstadoUsuario.ACTIVO).build();
+            when(usuarioRepository.findById(23L)).thenReturn(Optional.of(usuario));
+
+            assertThatThrownBy(() -> usuarioInternoService.editar(23L,
+                    new EditarUsuarioInternoCommand(null, null, null, Rol.CONDUCTOR, null, null)))
+                    .isInstanceOf(LicenciaRequeridaException.class);
+            assertThat(usuario.getRol()).isEqualTo(Rol.CLIENTE);
+            verify(sesionRepository, never()).deleteByUsuarioId(23L);
         }
 
         @Test

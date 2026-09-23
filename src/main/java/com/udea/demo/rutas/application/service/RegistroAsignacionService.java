@@ -24,17 +24,16 @@ public class RegistroAsignacionService {
     }
     @Transactional(readOnly = true)
     public List<NotificacionRutaDTO> misNotificaciones() {
-        Long usuario = actores.actorActual().getId();
-        actores.conductorActualId();
+        Long usuario = actores.conductorActualUsuarioId();
         return jdbc.query("SELECT id, id_pedido, mensaje, fecha, leida FROM notificaciones_conductor WHERE id_usuario_conductor = ? ORDER BY fecha DESC, id DESC LIMIT 100",
                 (rs, row) -> new NotificacionRutaDTO(rs.getLong(1), rs.getLong(2), rs.getString(3),
                         rs.getTimestamp(4).toLocalDateTime(), rs.getBoolean(5)), usuario);
     }
     @Transactional
     public void marcarLeida(Long id) {
-        actores.conductorActualId();
+        Long usuario = actores.conductorActualUsuarioId();
         int filas = jdbc.update("UPDATE notificaciones_conductor SET leida=true WHERE id=? AND id_usuario_conductor=?",
-                id, actores.actorActual().getId());
+                id, usuario);
         if (filas == 0) throw new AccessDeniedException("No existe una notificación propia con ese identificador");
     }
     @Transactional(readOnly = true)

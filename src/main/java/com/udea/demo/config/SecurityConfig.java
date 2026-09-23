@@ -63,7 +63,7 @@ public class SecurityConfig {
                     response.setStatus(401);
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.setCharacterEncoding("UTF-8");
-                    response.getWriter().write("{\"error\":\"Se requiere una sesión válida\"}");
+                    response.getWriter().write("{\"code\":\"SESION_REQUERIDA\",\"error\":\"Se requiere una sesión válida\"}");
                 })
                 .accessDeniedHandler((request, response, error) -> {
                     var auth = org.springframework.security.core.context.SecurityContextHolder
@@ -77,8 +77,8 @@ public class SecurityConfig {
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.setCharacterEncoding("UTF-8");
                     response.getWriter().write(cambioPassword
-                            ? "{\"error\":\"Debes cambiar tu contraseña temporal antes de continuar\"}"
-                            : "{\"error\":\"No tienes permiso para realizar esta acción\"}");
+                            ? "{\"code\":\"CAMBIO_PASSWORD_REQUERIDO\",\"error\":\"Debes cambiar tu contraseña temporal antes de continuar\"}"
+                            : "{\"code\":\"ROL_INSUFICIENTE\",\"error\":\"No tienes permiso para realizar esta acción\"}");
                 }))
             .addFilterBefore(dbaApiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(sesionAuthenticationFilter, DbaApiKeyAuthenticationFilter.class)

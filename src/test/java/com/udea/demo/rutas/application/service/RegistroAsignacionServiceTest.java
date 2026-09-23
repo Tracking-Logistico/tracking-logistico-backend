@@ -25,6 +25,21 @@ class RegistroAsignacionServiceTest {
                 eq(9L), eq(7L), eq("Tienes un nuevo envío asignado"));
     }
 
+    @Test void notificacionesUsanIdUsuarioSinExigirFilaConductor() {
+        when(actores.conductorActualUsuarioId()).thenReturn(9L);
+        registro.misNotificaciones();
+        verify(jdbc).query(startsWith("SELECT id, id_pedido, mensaje"),
+                any(org.springframework.jdbc.core.RowMapper.class), eq(9L));
+        verify(actores, never()).conductorActualId();
+    }
+
+    @Test void marcarLeidaUsaIdUsuarioYNoPerfilConductor() {
+        when(actores.conductorActualUsuarioId()).thenReturn(9L);
+        when(jdbc.update(anyString(), eq(14L), eq(9L))).thenReturn(1);
+        registro.marcarLeida(14L);
+        verify(actores, never()).conductorActualId();
+    }
+
     @Test void reasignacionGuardaConductorAnteriorYMotivo() {
         when(actores.actorActual()).thenReturn(Usuario.builder().id(44L).build());
         registro.registrar(7L, 8L, 9L, "REASIGNACION", "Avería");

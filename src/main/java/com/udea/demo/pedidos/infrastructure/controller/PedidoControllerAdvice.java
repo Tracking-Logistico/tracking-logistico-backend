@@ -4,6 +4,8 @@ import com.udea.demo.pedidos.domain.exception.PedidoNoEncontradoException;
 import com.udea.demo.pedidos.domain.exception.TrackingNoActivoException;
 import com.udea.demo.pedidos.domain.exception.TransicionEstadoInvalidaException;
 
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
 
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
 public class PedidoControllerAdvice {
 

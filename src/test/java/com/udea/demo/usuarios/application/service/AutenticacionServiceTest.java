@@ -141,6 +141,23 @@ class AutenticacionServiceTest {
         }
 
         @Test
+        @DisplayName("Cliente pendiente de correo puede usar la aplicación sin verificarse")
+        void loginClientePendienteCorreo() {
+            String email = "pendiente@correo.com";
+            Usuario cliente = crearUsuario(34L, email, Rol.CLIENTE, EstadoUsuario.PENDIENTE_VERIFICACION, true);
+            when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(cliente));
+            when(passwordEncoder.matches(RAW_PASSWORD, ENCODED_PASSWORD)).thenReturn(true);
+
+            LoginResponseDTO resultado = autenticacionService.iniciarSesion(
+                    new LoginRequestDTO(email, RAW_PASSWORD), IP_ORIGEN, USER_AGENT);
+
+            assertThat(resultado.rol()).isEqualTo(Rol.CLIENTE);
+            assertThat(resultado.panel()).isEqualTo("/panel/cliente");
+            assertThat(resultado.requiereCambioPassword()).isFalse();
+            verify(sesionRepository).save(any(SesionUsuario.class));
+        }
+
+        @Test
         @DisplayName("Autentica a un OPERADOR con expiración de 15 min y redirige a /panel/operador")
         void loginExitoso_operador() {
             // Arrange

@@ -43,9 +43,9 @@ public class EmailService implements EmailServiceI {
 
     @Override
     public void enviarVerificacion(String destinatario, String nombreUsuario, String enlace) {
-        enviar("VERIFICACION", destinatario, "Verificación de cuenta - Tracking Logístico",
+        enviar("VERIFICACION", destinatario, "Verificación opcional de correo - Tracking Logístico",
                 "Hola " + nombreUsuario + ",\n\n" +
-                "Para activar tu cuenta, ingresa a este enlace: \n" + enlace +
+                "Puedes usar tu cuenta desde ahora. Si deseas verificar tu correo, abre este enlace: \n" + enlace +
                 "\n\nEl enlace expira en 2 horas.", enlace);
     }
 

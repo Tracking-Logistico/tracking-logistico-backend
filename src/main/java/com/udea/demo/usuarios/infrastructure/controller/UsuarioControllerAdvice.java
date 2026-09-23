@@ -1,5 +1,7 @@
 package com.udea.demo.usuarios.infrastructure.controller;
 
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -22,6 +24,7 @@ import com.udea.demo.usuarios.domain.exception.TokenRestablecimientoInvalidoExce
 import java.util.HashMap;
 import java.util.Map;
 
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
 public class UsuarioControllerAdvice {
 

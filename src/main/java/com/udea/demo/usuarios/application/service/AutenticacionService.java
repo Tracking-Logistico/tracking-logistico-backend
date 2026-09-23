@@ -95,7 +95,9 @@ public class AutenticacionService implements AutenticacionServiceI {
 
         Usuario usuario = usuarioRepository.findByEmail(request.email()).orElse(null);
         boolean estadoLoginValido = usuario != null && (usuario.getEstado() == EstadoUsuario.ACTIVO
-                || usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION);
+                || usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION
+                || (usuario.getRol() == Rol.CLIENTE
+                    && usuario.getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION));
         if (usuario == null || !estadoLoginValido
                 || !Boolean.TRUE.equals(usuario.getActivo())
                 || !passwordEncoder.matches(request.password(), usuario.getPassword())) {
@@ -118,7 +120,10 @@ public class AutenticacionService implements AutenticacionServiceI {
         if (sesion.getRevokedAt() != null || sesion.getRefreshTokenExpiresAt().isBefore(ahora)
                 || !sesion.getLastActivityAt().plusMinutes(minutosInactividad).isAfter(ahora)
                 || !Boolean.TRUE.equals(sesion.getUsuario().getActivo())
-                || sesion.getUsuario().getEstado() != EstadoUsuario.ACTIVO) {
+                || !(sesion.getUsuario().getEstado() == EstadoUsuario.ACTIVO
+                    || sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION
+                    || (sesion.getUsuario().getRol() == Rol.CLIENTE
+                        && sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION))) {
             throw new SesionInvalidaException();
         }
         sesion.setRevokedAt(ahora);
@@ -169,8 +174,7 @@ public class AutenticacionService implements AutenticacionServiceI {
             throw new TokenRestablecimientoInvalidoException();
         }
         usuario.setPassword(passwordEncoder.encode(request.nuevaPassword()));
-        // Internal users created by CLI can activate their account through the existing
-        // password recovery flow; unverified client accounts still require email verification.
+        // Internal users may activate through this flow; client email confirmation is optional.
         if (usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION) {
             usuario.setEstado(EstadoUsuario.ACTIVO);
         }

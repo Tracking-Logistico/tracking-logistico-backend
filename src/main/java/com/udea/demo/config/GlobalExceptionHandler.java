@@ -1,6 +1,7 @@
 package com.udea.demo.config;
 
 import com.udea.demo.usuarios.domain.exception.EntregaCorreoException;
+import com.udea.demo.usuarios.domain.exception.PerfilRolIncompletoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -37,8 +38,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errors);
     }
 
+    @ExceptionHandler(PerfilRolIncompletoException.class)
+    public ResponseEntity<Map<String, String>> perfilIncompleto(PerfilRolIncompletoException ex) {
+        log.warn("Perfil de rol incompleto usuarioId={} rol={} - restaurar desde la administración de usuarios",
+                ex.getUsuarioId(), ex.getRol());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "code", "PERFIL_ROL_INCOMPLETO",
+                "error", "El perfil de " + ex.getRol().name().toLowerCase(java.util.Locale.ROOT)
+                        + " no está configurado. Un administrador debe completar sus datos de rol."));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> forbidden(AccessDeniedException ex) {
+        log.warn("Autorización de negocio denegada: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", "No tienes permiso para realizar esta acción"));
     }

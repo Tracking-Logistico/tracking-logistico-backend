@@ -245,7 +245,7 @@ class AutenticacionControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(content().string("Si el correo existe, recibirás instrucciones para restablecer tu contraseña"));
+                    .andExpect(content().string("Si el correo existe, intentaremos enviar instrucciones para restablecer tu contraseña"));
 
             verify(autenticacionService).solicitarRestablecimiento(request);
         }

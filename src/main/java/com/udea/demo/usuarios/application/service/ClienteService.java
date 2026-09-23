@@ -135,6 +135,11 @@ public class ClienteService implements ClienteServiceI {
         }
 
         Usuario usuario = tokenVerificacion.getUsuario();
+        if (usuario.getRol() != Rol.CLIENTE
+                || usuario.getEstado() != EstadoUsuario.PENDIENTE_VERIFICACION
+                || !Boolean.TRUE.equals(usuario.getActivo())) {
+            throw new IllegalArgumentException("El token ya no corresponde a una cuenta pendiente de verificación");
+        }
         usuario.setEstado(EstadoUsuario.ACTIVO);
         usuarioRepository.save(usuario);
 

@@ -1,6 +1,9 @@
 package com.udea.demo.config;
 
 import jakarta.servlet.DispatcherType;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -15,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
     private final SesionAuthenticationFilter sesionAuthenticationFilter;
     private final DbaApiKeyAuthenticationFilter dbaApiKeyAuthenticationFilter;
 
@@ -22,6 +26,23 @@ public class SecurityConfig {
                           DbaApiKeyAuthenticationFilter dbaApiKeyAuthenticationFilter) {
         this.sesionAuthenticationFilter = sesionAuthenticationFilter;
         this.dbaApiKeyAuthenticationFilter = dbaApiKeyAuthenticationFilter;
+    }
+
+    // Son filtros de Spring Security, no filtros globales del contenedor servlet.
+    // Registrarlos dos veces puede perder el SecurityContext y producir 403
+    // incluso con un Bearer válido.
+    @Bean
+    public FilterRegistrationBean<SesionAuthenticationFilter> sesionFilterRegistration() {
+        var registration = new FilterRegistrationBean<>(sesionAuthenticationFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<DbaApiKeyAuthenticationFilter> dbaFilterRegistration() {
+        var registration = new FilterRegistrationBean<>(dbaApiKeyAuthenticationFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
@@ -42,16 +63,25 @@ public class SecurityConfig {
                     response.setStatus(401);
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.setCharacterEncoding("UTF-8");
-                    response.getWriter().write("{\"error\":\"Se requiere una sesión válida\"}");
+                    response.getWriter().write("{\"code\":\"SESION_REQUERIDA\",\"error\":\"Se requiere una sesión válida\"}");
                 })
                 .accessDeniedHandler((request, response, error) -> {
+                    var auth = org.springframework.security.core.context.SecurityContextHolder
+                            .getContext().getAuthentication();
+                    boolean cambioPassword = auth != null && auth.getAuthorities().stream()
+                            .anyMatch(a -> "ROLE_PASSWORD_CHANGE".equals(a.getAuthority()));
+                    log.warn("Acceso denegado metodo={} ruta={} roles={} motivo={}",
+                            request.getMethod(), request.getRequestURI(),
+                            auth == null ? "sin sesión" : auth.getAuthorities(), error.getClass().getSimpleName());
                     response.setStatus(403);
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.setCharacterEncoding("UTF-8");
-                    response.getWriter().write("{\"error\":\"No tienes permiso para realizar esta acción\"}");
+                    response.getWriter().write(cambioPassword
+                            ? "{\"code\":\"CAMBIO_PASSWORD_REQUERIDO\",\"error\":\"Debes cambiar tu contraseña temporal antes de continuar\"}"
+                            : "{\"code\":\"ROL_INSUFICIENTE\",\"error\":\"No tienes permiso para realizar esta acción\"}");
                 }))
             .addFilterBefore(dbaApiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(sesionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(sesionAuthenticationFilter, DbaApiKeyAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()

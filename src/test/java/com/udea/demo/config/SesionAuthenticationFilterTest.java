@@ -113,6 +113,25 @@ class SesionAuthenticationFilterTest {
         }
 
         @Test
+        @DisplayName("Cliente sin correo verificado obtiene ROLE_CLIENTE y puede usar endpoints privados")
+        void clientePendienteVerificacion_seAutentica() throws ServletException, IOException {
+            String token = "cliente-sin-verificar";
+            Usuario cliente = crearUsuario("cliente@correo.com", Rol.CLIENTE, true);
+            cliente.setEstado(EstadoUsuario.PENDIENTE_VERIFICACION);
+            LocalDateTime ahora = LocalDateTime.now();
+            SesionUsuario sesion = new SesionUsuario(cliente, AutenticacionService.hash(token), "refresh",
+                    ahora.plusMinutes(25), ahora.plusDays(7), ahora.minusMinutes(2));
+            when(sesionRepository.findByAccessTokenHash(AutenticacionService.hash(token)))
+                    .thenReturn(Optional.of(sesion));
+            request.addHeader("Authorization", "Bearer " + token);
+
+            filter.doFilterInternal(request, response, filterChain);
+
+            assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
+                    .anyMatch(a -> "ROLE_CLIENTE".equals(a.getAuthority()));
+        }
+
+        @Test
         @DisplayName("Cliente inactivo más de 30 minutos NO se autentica y requiere reautenticación")
         void clienteInactivoMasDe30Minutos_noSeAutentica() throws ServletException, IOException {
             // Arrange

@@ -134,7 +134,7 @@ class ClienteControllerTest {
             // Act & Assert
             mockMvc.perform(get("/api/v1/clientes/verificar").param("token", "uuid-token"))
                     .andExpect(status().isOk())
-                    .andExpect(content().string("Cuenta verificada con éxito. Ya puedes iniciar sesión."));
+                    .andExpect(content().string("Correo verificado con éxito. Puedes seguir utilizando tu cuenta."));
 
             verify(clienteService).verificarCuenta("uuid-token");
         }

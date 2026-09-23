@@ -1,6 +1,7 @@
 package com.udea.demo.usuarios.application.service;
 
 import com.udea.demo.usuarios.domain.model.Rol;
+import com.udea.demo.usuarios.domain.exception.PerfilRolIncompletoException;
 import com.udea.demo.usuarios.domain.model.Usuario;
 import com.udea.demo.usuarios.interfaces.persistence.ClienteRepository;
 import com.udea.demo.usuarios.interfaces.persistence.ConductorRepository;
@@ -43,14 +44,19 @@ public class ActorAuthorizationService {
     public Long operadorActualId() {
         Usuario actor = exigirRol(Rol.OPERADOR);
         return operadores.findByUsuarioId(actor.getId())
-                .orElseThrow(() -> new AccessDeniedException("La sesión no corresponde a un operador válido"))
+                .orElseThrow(() -> new PerfilRolIncompletoException(Rol.OPERADOR, actor.getId()))
                 .getId();
+    }
+
+    /** Las notificaciones se asignan al id de usuarios, no al id de conductores. */
+    public Long conductorActualUsuarioId() {
+        return exigirRol(Rol.CONDUCTOR).getId();
     }
 
     public Long conductorActualId() {
         Usuario actor = exigirRol(Rol.CONDUCTOR);
         return conductores.findByUsuarioId(actor.getId())
-                .orElseThrow(() -> new AccessDeniedException("La sesión no corresponde a un conductor válido"))
+                .orElseThrow(() -> new PerfilRolIncompletoException(Rol.CONDUCTOR, actor.getId()))
                 .getId();
     }
 

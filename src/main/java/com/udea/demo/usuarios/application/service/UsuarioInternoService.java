@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 public class UsuarioInternoService implements UsuarioInternoServiceI {
 
     private final UsuarioRepository usuarioRepository;
+    private final ClienteRepository clienteRepository;
     private final ConductorRepository conductorRepository;
     private final OperadorRepository operadorRepository;
     private final PasswordEncoder passwordEncoder;
@@ -25,6 +26,7 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
     private final PasswordPolicyService passwordPolicyService;
 
     public UsuarioInternoService(UsuarioRepository usuarioRepository,
+                                 ClienteRepository clienteRepository,
                                  ConductorRepository conductorRepository,
                                  OperadorRepository operadorRepository,
                                  PasswordEncoder passwordEncoder,
@@ -33,6 +35,7 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
                                  SesionUsuarioRepository sesionRepository,
                                  PasswordPolicyService passwordPolicyService) {
         this.usuarioRepository = usuarioRepository;
+        this.clienteRepository = clienteRepository;
         this.conductorRepository = conductorRepository;
         this.operadorRepository = operadorRepository;
         this.passwordEncoder = passwordEncoder;
@@ -101,62 +104,62 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new UsuarioNoEncontradoException(id));
 
-        if (usuario.getRol() != Rol.OPERADOR && usuario.getRol() != Rol.CONDUCTOR) {
-            throw new RolInternoInvalidoException();
-        }
         if (command.nombre() != null) usuario.setNombre(command.nombre());
         if (command.telefono() != null) usuario.setTelefono(command.telefono());
         if (command.direccion() != null) usuario.setDireccion(command.direccion());
 
-        // cambio de rol
-        if (command.rol() != null && !command.rol().equals(usuario.getRol())) {
-            if (command.rol() != Rol.OPERADOR && command.rol() != Rol.CONDUCTOR) {
-                throw new RolInternoInvalidoException();
+        Rol destino = command.rol() == null ? usuario.getRol() : command.rol();
+        // La identidad de cada rol tiene su propia tabla. Conservar las filas anteriores:
+        // pedidos, rutas e historial pueden seguir referenciándolas.
+        if (destino == Rol.CONDUCTOR) {
+            conductorRepository.findByUsuarioId(id).ifPresentOrElse(conductor -> {
+                if (command.licencia() != null) {
+                    if (esVacio(command.licencia())) throw new LicenciaRequeridaException();
+                    conductor.setLicencia(command.licencia());
+                    conductorRepository.save(conductor);
+                }
+            }, () -> {
+                if (esVacio(command.licencia())) throw new LicenciaRequeridaException();
+                crearFilaSegunRol(usuario, Rol.CONDUCTOR, command.licencia(), null);
+            });
+        } else if (destino == Rol.OPERADOR) {
+            operadorRepository.findByUsuarioId(id).ifPresentOrElse(operador -> {
+                if (command.codigoEmpleado() != null) {
+                    if (esVacio(command.codigoEmpleado())) throw new CodigoEmpleadoRequeridoException();
+                    if (!command.codigoEmpleado().equals(operador.getCodigoEmpleado())
+                            && operadorRepository.existsByCodigoEmpleado(command.codigoEmpleado())) {
+                        throw new IllegalArgumentException("El código de empleado ya está registrado");
+                    }
+                    operador.setCodigoEmpleado(command.codigoEmpleado());
+                    operadorRepository.save(operador);
+                }
+            }, () -> {
+                if (esVacio(command.codigoEmpleado())) throw new CodigoEmpleadoRequeridoException();
+                if (operadorRepository.existsByCodigoEmpleado(command.codigoEmpleado())) {
+                    throw new IllegalArgumentException("El código de empleado ya está registrado");
+                }
+                crearFilaSegunRol(usuario, Rol.OPERADOR, null, command.codigoEmpleado());
+            });
+        } else if (destino == Rol.CLIENTE) {
+            if (clienteRepository.findByUsuarioId(id).isEmpty()) {
+                clienteRepository.save(Cliente.builder().usuario(usuario).build());
             }
-
-            // validar datos requeridos para el nuevo rol
-            if (command.rol() == Rol.CONDUCTOR && esVacio(command.licencia())) {
-                throw new LicenciaRequeridaException();
-            }
-            if (command.rol() == Rol.OPERADOR && esVacio(command.codigoEmpleado())) {
-                throw new CodigoEmpleadoRequeridoException();
-            }
-
-            // Conservar filas históricas: rutas y pedidos previos pueden referenciarlas.
-            // Si la persona vuelve a su rol anterior, reutilizar su identidad operativa.
-            if (command.rol() == Rol.CONDUCTOR) {
-                conductorRepository.findByUsuarioId(usuario.getId()).ifPresentOrElse(
-                    c -> { c.setLicencia(command.licencia()); conductorRepository.save(c); },
-                    () -> crearFilaSegunRol(usuario, command.rol(), command.licencia(), null));
-            } else {
-                operadorRepository.findByUsuarioId(usuario.getId()).ifPresentOrElse(
-                    o -> { o.setCodigoEmpleado(command.codigoEmpleado()); operadorRepository.save(o); },
-                    () -> crearFilaSegunRol(usuario, command.rol(), null, command.codigoEmpleado()));
-            }
-
-            usuario.setRol(command.rol());
-            // Tokens anteriores no deben heredar privilegios de otro rol.
-            sesionRepository.deleteByUsuarioId(usuario.getId());
         } else {
-            // mismo rol: actualizar datos de la tabla específica si vienen
-            if (usuario.getRol() == Rol.CONDUCTOR && command.licencia() != null) {
-                conductorRepository.findByUsuarioId(usuario.getId())
-                        .ifPresent(c -> {
-                            c.setLicencia(command.licencia());
-                            conductorRepository.save(c);
-                        });
-            }
-            if (usuario.getRol() == Rol.OPERADOR && command.codigoEmpleado() != null) {
-                operadorRepository.findByUsuarioId(usuario.getId())
-                        .ifPresent(o -> {
-                            o.setCodigoEmpleado(command.codigoEmpleado());
-                            operadorRepository.save(o);
-                        });
-            }
+            throw new RolInternoInvalidoException();
         }
 
-        Usuario actualizado = usuarioRepository.save(usuario);
-        return mapToDTO(actualizado);
+        if (destino != usuario.getRol()) {
+            usuario.setRol(destino);
+            // El correo es opcional: una cuenta cliente pendiente de verificación
+            // sigue activa cuando pasa a ser operador o conductor.
+            if (usuario.getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION) {
+                usuario.setEstado(EstadoUsuario.ACTIVO);
+            }
+            // Una sesión antigua nunca debe conservar acceso con un rol nuevo.
+            sesionRepository.deleteByUsuarioId(id);
+        }
+
+        return mapToDTO(usuarioRepository.save(usuario));
     }
 
     @Override

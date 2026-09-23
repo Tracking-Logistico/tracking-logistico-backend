@@ -37,7 +37,13 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = bearer(request);
-        if (token != null) {
+        // En administración, una API key DBA válida prevalece incluso si el cliente
+        // también envía accidentalmente un Bearer de usuario en la misma solicitud.
+        boolean adminConApiKey = request.getRequestURI().startsWith("/api/v1/admin/")
+                && SecurityContextHolder.getContext().getAuthentication() != null
+                && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                    .anyMatch(a -> "ROLE_DBA".equals(a.getAuthority()));
+        if (token != null && !adminConApiKey) {
             sesionRepository.findByAccessTokenHash(AutenticacionService.hash(token)).ifPresent(sesion -> {
                 LocalDateTime ahora = LocalDateTime.now();
                 Rol rol = sesion.getUsuario().getRol();
@@ -48,7 +54,9 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
                         && sesion.getLastActivityAt().plusMinutes(minutosInactividad).isAfter(ahora)
                         && Boolean.TRUE.equals(sesion.getUsuario().getActivo())
                         && (sesion.getUsuario().getEstado() == EstadoUsuario.ACTIVO
-                            || sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION);
+                            || sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION
+                            || (rol == Rol.CLIENTE
+                                && sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION));
                 if (vigente) {
                     sesion.setLastActivityAt(ahora);
                     // Rolling inactivity expiration without changing the Bearer token or the API contract.

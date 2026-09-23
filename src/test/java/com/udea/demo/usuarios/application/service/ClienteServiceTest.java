@@ -44,6 +44,15 @@ class ClienteServiceTest {
     @Mock private ClienteRepository clienteRepository;
     @Mock private TokenVerificacionRepository tokenRepository;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private com.udea.demo.usuarios.interfaces.services.EmailServiceI emailService;
+    @Mock private ActorAuthorizationService actorAuthorizationService;
+    @Mock private PasswordPolicyService passwordPolicyService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void configuration() {
+        org.springframework.test.util.ReflectionTestUtils.setField(clienteService,
+                "verificationUrl", "http://localhost:5173/verificar");
+    }
 
     @InjectMocks private ClienteService clienteService;
 

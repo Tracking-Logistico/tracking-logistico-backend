@@ -40,6 +40,10 @@ public class Ruta {
     private LocalDateTime fechaCreacion;
 
     @Builder.Default
+    @Column(name = "orden_manual", nullable = false)
+    private boolean ordenManual = false;
+
+    @Builder.Default
     @OneToMany(mappedBy = "ruta", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ParadaRuta> paradas = new ArrayList<>();
 
@@ -53,9 +57,9 @@ public class Ruta {
     }
 
     public ParadaRuta agregarParada(Long pedidoId) {
-        int siguienteOrden = (int) paradas.stream()
+        int siguienteOrden = paradas.stream()
                 .filter(p -> p.getEstado() == EstadoParada.PENDIENTE)
-                .count() + 1;
+                .mapToInt(ParadaRuta::getOrden).max().orElse(0) + 1;
 
         ParadaRuta parada = ParadaRuta.asignar(this, pedidoId, siguienteOrden);
         paradas.add(parada);
@@ -69,10 +73,24 @@ public class Ruta {
                 .orElseThrow(() -> new EnvioNoAsignadoException(pedidoId));
 
         parada.cancelar();
+        List<ParadaRuta> activas = paradas.stream()
+                .filter(p -> p.getEstado() == EstadoParada.PENDIENTE)
+                .sorted(java.util.Comparator.comparing(ParadaRuta::getOrden))
+                .toList();
+        for (int i = 0; i < activas.size(); i++) activas.get(i).actualizarOrden(i + 1);
     }
 
     // Organización de la ruta: aplica el orden indicado por el operador a las paradas activas
     public void reordenar(List<Long> pedidoIdsEnOrden) {
+        aplicarOrden(pedidoIdsEnOrden);
+        this.ordenManual = true;
+    }
+
+    public void reordenarAutomatico(List<Long> pedidoIdsEnOrden) {
+        aplicarOrden(pedidoIdsEnOrden);
+    }
+
+    private void aplicarOrden(List<Long> pedidoIdsEnOrden) {
         List<ParadaRuta> activas = paradas.stream()
                 .filter(p -> p.getEstado() == EstadoParada.PENDIENTE)
                 .toList();

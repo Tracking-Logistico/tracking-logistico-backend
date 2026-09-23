@@ -47,7 +47,8 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
                         && sesion.getAccessTokenExpiresAt().isAfter(ahora)
                         && sesion.getLastActivityAt().plusMinutes(minutosInactividad).isAfter(ahora)
                         && Boolean.TRUE.equals(sesion.getUsuario().getActivo())
-                        && sesion.getUsuario().getEstado() == EstadoUsuario.ACTIVO;
+                        && (sesion.getUsuario().getEstado() == EstadoUsuario.ACTIVO
+                            || sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION);
                 if (vigente) {
                     sesion.setLastActivityAt(ahora);
                     // Rolling inactivity expiration without changing the Bearer token or the API contract.
@@ -57,9 +58,11 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
                     }
                     sesion.setAccessTokenExpiresAt(limite);
                     sesionRepository.save(sesion);
+                    String authority = sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION
+                            ? "ROLE_PASSWORD_CHANGE" : "ROLE_" + rol.name();
                     var auth = new UsernamePasswordAuthenticationToken(
                             sesion.getUsuario().getEmail(), null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + rol.name())));
+                            List.of(new SimpleGrantedAuthority(authority)));
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
             });

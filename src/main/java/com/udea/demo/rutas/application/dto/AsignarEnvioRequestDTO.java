@@ -4,9 +4,9 @@ import jakarta.validation.constraints.NotNull;
 
 public record AsignarEnvioRequestDTO(
 
-    @NotNull(message = "El envío es obligatorio")
+    @NotNull @jakarta.validation.constraints.Positive(message = "El pedido debe ser positivo")
     Long pedidoId,
 
-    @NotNull(message = "El conductor es obligatorio")
+    @NotNull @jakarta.validation.constraints.Positive(message = "El conductor debe ser positivo")
     Long conductorId
 ) {}

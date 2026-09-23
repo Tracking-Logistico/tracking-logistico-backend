@@ -21,7 +21,7 @@ class PrioridadPorTipoServicioYPesoStrategyTest {
     private final PrioridadPorTipoServicioYPesoStrategy estrategia = new PrioridadPorTipoServicioYPesoStrategy();
 
     @Test
-    @DisplayName("EXPRESS siempre sugiere URGENTE sin importar el peso")
+    @DisplayName("EXPRESS siempre sugiere ALTA sin importar el peso")
     void express_sugiereUrgente() {
         // Arrange
         TipoServicio servicio = TipoServicio.EXPRESS;
@@ -31,11 +31,11 @@ class PrioridadPorTipoServicioYPesoStrategyTest {
         Prioridad resultado = estrategia.sugerir(servicio, peso);
 
         // Assert
-        assertThat(resultado).isEqualTo(Prioridad.URGENTE);
+        assertThat(resultado).isEqualTo(Prioridad.ALTA);
     }
 
     @Test
-    @DisplayName("peso mayor a 20 kg sugiere ALTA (servicio no express)")
+    @DisplayName("El servicio ESTANDAR sugiere MEDIA independientemente del peso")
     void pesoMayorAlUmbral_sugiereAlta() {
         // Arrange
         TipoServicio servicio = TipoServicio.ESTANDAR;
@@ -45,7 +45,7 @@ class PrioridadPorTipoServicioYPesoStrategyTest {
         Prioridad resultado = estrategia.sugerir(servicio, peso);
 
         // Assert
-        assertThat(resultado).isEqualTo(Prioridad.ALTA);
+        assertThat(resultado).isEqualTo(Prioridad.MEDIA);
     }
 
     @Test

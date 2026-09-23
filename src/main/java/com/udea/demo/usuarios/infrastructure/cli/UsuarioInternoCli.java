@@ -11,6 +11,8 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import jakarta.validation.Validator;
+import java.util.stream.Collectors;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,9 +21,11 @@ import java.util.Map;
 public class UsuarioInternoCli implements ApplicationRunner {
 
     private final UsuarioInternoServiceI service;
+    private final Validator validator;
 
-    public UsuarioInternoCli(UsuarioInternoServiceI service) {
+    public UsuarioInternoCli(UsuarioInternoServiceI service, Validator validator) {
         this.service = service;
+        this.validator = validator;
     }
 
     @Override
@@ -43,6 +47,7 @@ public class UsuarioInternoCli implements ApplicationRunner {
             }
         } catch (RuntimeException ex) {
             System.err.println("ERROR: " + ex.getMessage());
+            throw ex;
         }
     }
 
@@ -57,6 +62,7 @@ public class UsuarioInternoCli implements ApplicationRunner {
                 o.get("codigoEmpleado")
         );
 
+        validar(cmd);
         ResultadoCreacionUsuarioInterno r = service.crear(cmd);
 
         System.out.println("=================================================");
@@ -90,6 +96,7 @@ public class UsuarioInternoCli implements ApplicationRunner {
                 o.get("codigoEmpleado")
         );
 
+        validar(cmd);
         service.editar(id, cmd);
         System.out.println("Usuario " + id + " actualizado.");
     }
@@ -98,6 +105,15 @@ public class UsuarioInternoCli implements ApplicationRunner {
         Long id = Long.valueOf(o.get("id"));
         service.desactivar(id);
         System.out.println("Usuario " + id + " desactivado.");
+    }
+
+    private <T> void validar(T command) {
+        var violations = validator.validate(command);
+        if (!violations.isEmpty()) {
+            throw new IllegalArgumentException(violations.stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                .collect(Collectors.joining("; ")));
+        }
     }
 
     private Map<String, String> extraerOpciones(ApplicationArguments args) {

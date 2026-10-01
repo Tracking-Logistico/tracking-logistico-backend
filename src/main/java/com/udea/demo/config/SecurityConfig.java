@@ -52,7 +52,9 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
-            .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
+            .headers(headers -> headers
+                .frameOptions(frameOptions -> frameOptions.sameOrigin())
+                .contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'self'")))
             .sessionManagement(session -> session.sessionCreationPolicy(
                     org.springframework.security.config.http.SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions

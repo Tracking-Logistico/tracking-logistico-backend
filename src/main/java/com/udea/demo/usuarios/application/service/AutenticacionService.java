@@ -42,6 +42,8 @@ import com.udea.demo.usuarios.interfaces.services.EmailServiceI;
 public class AutenticacionService implements AutenticacionServiceI {
     private static final Logger log = LoggerFactory.getLogger(AutenticacionService.class);
     private static final int MAX_INTENTOS = 5;
+    private static final String DUMMY_PASSWORD_HASH =
+            "$2a$10$7EqJtq98hPqEX7fNZaFWoOht7e1Zrh9iWv6eG2QGfT.XU/PqmEw1y";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final UsuarioRepository usuarioRepository;
@@ -94,13 +96,15 @@ public class AutenticacionService implements AutenticacionServiceI {
         }
 
         Usuario usuario = usuarioRepository.findByEmail(request.email()).orElse(null);
+    String hashParaValidar = usuario == null ? DUMMY_PASSWORD_HASH : usuario.getPassword();
+    boolean passwordCorrecta = passwordEncoder.matches(request.password(), hashParaValidar);
         boolean estadoLoginValido = usuario != null && (usuario.getEstado() == EstadoUsuario.ACTIVO
                 || usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION
                 || (usuario.getRol() == Rol.CLIENTE
                     && usuario.getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION));
         if (usuario == null || !estadoLoginValido
                 || !Boolean.TRUE.equals(usuario.getActivo())
-                || !passwordEncoder.matches(request.password(), usuario.getPassword())) {
+        || !passwordCorrecta) {
             registrarFallo(request.email(), usuario, ahora, ip, userAgent);
             throw new CredencialesInvalidasException();
         }

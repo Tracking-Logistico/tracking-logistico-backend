@@ -3,6 +3,7 @@ package com.udea.demo.usuarios.application.service;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.access.AccessDeniedException;
@@ -32,6 +33,9 @@ public class ClienteService implements ClienteServiceI {
     private final TokenVerificacionRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
+
+    @Value("${app.auth.verification-url:https://tracking-logistico-backend.onrender.com/api/v1/clientes/verificar}")
+    private String verificationUrl = "https://tracking-logistico-backend.onrender.com/api/v1/clientes/verificar";
 
     public ClienteService(UsuarioRepository usuarioRepository,
                           ClienteRepository clienteRepository,
@@ -80,7 +84,7 @@ public class ClienteService implements ClienteServiceI {
 
         String tokenUUID = UUID.randomUUID().toString();
         TokenVerificacion tokenVerificacion = TokenVerificacion.builder()
-                .token(tokenUUID)
+            .token(AutenticacionService.hash(tokenUUID))
                 .usuario(guardado)
                 .fechaExpiracion(LocalDateTime.now().plusHours(2))
                 .build();
@@ -93,7 +97,7 @@ public class ClienteService implements ClienteServiceI {
     }
 
     private void enviarCorreoVerificacion(String emailDestino, String nombreUsuario, String token) {
-        String urlVerificacion = "https://tracking-logistico-backend.onrender.com/api/v1/clientes/verificar?token=" + token;
+        String urlVerificacion = verificationUrl + "?token=" + token;
 
         SimpleMailMessage mensaje = new SimpleMailMessage();
         mensaje.setTo(emailDestino);
@@ -109,7 +113,7 @@ public class ClienteService implements ClienteServiceI {
     @Override 
     @Transactional
     public void verificarCuenta(String token) {
-        TokenVerificacion tokenVerificacion = tokenRepository.findByToken(token)
+        TokenVerificacion tokenVerificacion = tokenRepository.findByToken(AutenticacionService.hash(token))
                 .orElseThrow(() -> new IllegalArgumentException("Token de verificación inválido"));
 
         if (tokenVerificacion.estaExpirado()) {

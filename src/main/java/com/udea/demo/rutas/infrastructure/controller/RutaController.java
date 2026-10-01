@@ -17,7 +17,6 @@ import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -81,9 +80,8 @@ public class RutaController {
     }
 
     @GetMapping("/conductores/{conductorId}")
-    public ResponseEntity<RutaResponseDTO> obtenerRutaDeConductor(
-            @PathVariable Long conductorId, Authentication authentication) {
-        return ResponseEntity.ok(rutaService.obtenerRutaActivaDeConductor(conductorId, authentication.getName()));
+    public ResponseEntity<RutaResponseDTO> obtenerRutaDeConductor(@PathVariable Long conductorId) {
+        return ResponseEntity.ok(rutaService.obtenerRutaActivaDeConductor(conductorId));
     }
 
     @PutMapping("/{rutaId}/orden")

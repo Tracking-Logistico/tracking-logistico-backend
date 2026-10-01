@@ -9,7 +9,6 @@ import com.udea.demo.rutas.domain.exception.*;
 import com.udea.demo.rutas.domain.model.*;
 import com.udea.demo.rutas.interfaces.persistence.*;
 import com.udea.demo.rutas.interfaces.services.RutaServiceI;
-import org.springframework.security.access.AccessDeniedException;
 import com.udea.demo.usuarios.domain.model.Conductor;
 import com.udea.demo.usuarios.domain.model.Rol;
 import com.udea.demo.usuarios.interfaces.persistence.ConductorRepository;
@@ -129,16 +128,6 @@ public class RutaService implements RutaServiceI {
     @Override @Transactional(readOnly = true)
     public RutaResponseDTO obtenerRutaActivaDeConductor(Long conductorUsuarioId) {
         Conductor conductor = conductorPorUsuario(conductorUsuarioId);
-        return rutaActivaDeConductor(conductor, conductorUsuarioId);
-    }
-
-    @Override @Transactional(readOnly = true)
-    public RutaResponseDTO obtenerRutaActivaDeConductor(Long conductorUsuarioId, String usuarioAutenticadoEmail) {
-        Conductor conductor = conductorPorUsuario(conductorUsuarioId);
-        if (!conductor.getUsuario().getEmail().equalsIgnoreCase(usuarioAutenticadoEmail)) {
-            throw new AccessDeniedException("No tiene autorización para consultar esta ruta.");
-        }
-
         return rutaActivaDeConductor(conductor, conductorUsuarioId);
     }
 

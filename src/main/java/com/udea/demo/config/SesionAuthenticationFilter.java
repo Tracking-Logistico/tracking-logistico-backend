@@ -1,6 +1,7 @@
 package com.udea.demo.config;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,6 +23,8 @@ import com.udea.demo.usuarios.interfaces.persistence.SesionUsuarioRepository;
 
 @Component
 public class SesionAuthenticationFilter extends OncePerRequestFilter {
+    private static final long UMBRAL_ACTUALIZACION_ACTIVIDAD_SEGUNDOS = 60;
+
     private final SesionUsuarioRepository sesionRepository;
     @Value("${app.auth.client-inactivity-minutes:30}")
     private long minutosInactividadCliente;
@@ -47,8 +50,11 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
                         && sesion.getLastActivityAt().plusMinutes(minutosInactividad).isAfter(ahora)
                         && Boolean.TRUE.equals(sesion.getUsuario().getActivo());
                 if (vigente) {
-                    sesion.setLastActivityAt(ahora);
-                    sesionRepository.save(sesion);
+                    if (Duration.between(sesion.getLastActivityAt(), ahora).getSeconds()
+                            > UMBRAL_ACTUALIZACION_ACTIVIDAD_SEGUNDOS) {
+                        sesion.setLastActivityAt(ahora);
+                        sesionRepository.save(sesion);
+                    }
                     var auth = new UsernamePasswordAuthenticationToken(
                             sesion.getUsuario().getEmail(), null,
                             List.of(new SimpleGrantedAuthority("ROLE_" + rol.name())));

@@ -18,5 +18,5 @@ public interface RutaServiceI {
 
     RutaResponseDTO reasignarEnvio(ReasignarEnvioRequestDTO dto);
 
-    RutaResponseDTO obtenerRutaActivaDeConductor(Long conductorId);
+    RutaResponseDTO obtenerRutaActivaDeConductor(Long conductorId, String usuarioAutenticadoEmail);
 }

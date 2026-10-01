@@ -1,6 +1,7 @@
 package com.udea.demo.usuarios.infrastructure.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,10 +23,12 @@ public class UsuarioControler {
     @PutMapping("/{id}/password")
     public ResponseEntity<String> cambiarPassword(
             @PathVariable Long id,
-            @Valid @RequestBody CambiarPasswordRequestDTO dto) {
+            @Valid @RequestBody CambiarPasswordRequestDTO dto,
+            Authentication authentication) {
 
         usuarioInternoService.cambiarPassword(
                 id,
+                authentication.getName(),
                 dto.passwordActual(),
                 dto.nuevaPassword(),
                 dto.confirmarPassword()

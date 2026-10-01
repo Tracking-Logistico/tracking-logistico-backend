@@ -7,6 +7,7 @@ import com.udea.demo.usuarios.domain.model.*;
 import com.udea.demo.usuarios.interfaces.persistence.*;
 import com.udea.demo.usuarios.interfaces.services.UsuarioInternoServiceI;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -158,15 +159,18 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
 
     @Override
     @Transactional
-    public void cambiarPassword(Long id, String passwordActual,
+    public void cambiarPassword(Long id, String usuarioAutenticadoEmail, String passwordActual,
                                 String nuevaPassword, String confirmarPassword) {
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new UsuarioNoEncontradoException(id));
+
+        if (!usuario.getEmail().equalsIgnoreCase(usuarioAutenticadoEmail)) {
+            throw new AccessDeniedException("No tiene autorización para cambiar esta contraseña.");
+        }
 
         if (!nuevaPassword.equals(confirmarPassword)) {
             throw new PasswordNoCoincideException();
         }
-
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new UsuarioNoEncontradoException(id));
 
         if (!usuario.getActivo()) {
             throw new CuentaInactivaException();

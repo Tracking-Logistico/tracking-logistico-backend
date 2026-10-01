@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -124,9 +125,11 @@ public class ClienteService implements ClienteServiceI {
 
     @Override 
     @Transactional
-    public UsuarioResponseDTO actualizarPerfil(Long id, ActualizarPerfilRequestDTO dto) {
+    public UsuarioResponseDTO actualizarPerfil(Long id, ActualizarPerfilRequestDTO dto,
+                                                String usuarioAutenticadoEmail) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
+        validarPropietario(usuario, usuarioAutenticadoEmail);
 
         usuario.setNombre(dto.nombre());
         if (dto.telefono() != null) usuario.setTelefono(dto.telefono());
@@ -139,13 +142,20 @@ public class ClienteService implements ClienteServiceI {
 
     @Override
     @Transactional
-    public void desactivarCuentaCliente(Long id) {
+    public void desactivarCuentaCliente(Long id, String usuarioAutenticadoEmail) {
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado con ID: " + id));
         Usuario u = cliente.getUsuario();
+        validarPropietario(u, usuarioAutenticadoEmail);
         u.setActivo(false);
         u.setEstado(EstadoUsuario.INACTIVO);
         usuarioRepository.save(u);
+    }
+
+    private void validarPropietario(Usuario usuario, String usuarioAutenticadoEmail) {
+        if (!usuario.getEmail().equalsIgnoreCase(usuarioAutenticadoEmail)) {
+            throw new AccessDeniedException("No tiene autorización para modificar este recurso.");
+        }
     }
 
     private ClienteResponseDTO mapToClienteResponseDTO(Cliente c) {

@@ -10,6 +10,7 @@ import com.udea.demo.usuarios.interfaces.services.ClienteServiceI;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -38,14 +39,15 @@ public class ClienteController {
     @PutMapping("/{id}/perfil")
     public ResponseEntity<UsuarioResponseDTO> actualizarPerfil(
             @PathVariable Long id,
-            @Valid @RequestBody ActualizarPerfilRequestDTO dto) {
-        UsuarioResponseDTO respuesta = clienteService.actualizarPerfil(id, dto);
+            @Valid @RequestBody ActualizarPerfilRequestDTO dto,
+            Authentication authentication) {
+        UsuarioResponseDTO respuesta = clienteService.actualizarPerfil(id, dto, authentication.getName());
         return ResponseEntity.ok(respuesta);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> desactivarCuenta(@PathVariable Long id) {
-        clienteService.desactivarCuentaCliente(id);
+    public ResponseEntity<Void> desactivarCuenta(@PathVariable Long id, Authentication authentication) {
+        clienteService.desactivarCuentaCliente(id, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 

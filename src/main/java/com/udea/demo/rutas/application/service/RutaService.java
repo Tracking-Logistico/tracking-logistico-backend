@@ -18,6 +18,7 @@ import com.udea.demo.rutas.interfaces.persistence.RutaRepository;
 import com.udea.demo.usuarios.interfaces.persistence.ConductorRepository;
 import com.udea.demo.rutas.interfaces.services.RutaServiceI;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,8 +98,15 @@ public class RutaService implements RutaServiceI {
     }
 
     @Override
-    public RutaResponseDTO obtenerRutaActivaDeConductor(Long conductorId) {
-        Ruta ruta = rutaRepository.findByConductorIdAndFecha(conductorInternoId(conductorId), LocalDate.now())
+    public RutaResponseDTO obtenerRutaActivaDeConductor(Long conductorId, String usuarioAutenticadoEmail) {
+        var conductor = conductorRepository.findByUsuarioId(conductorId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No existe un conductor para el usuario con ID: " + conductorId));
+        if (!conductor.getUsuario().getEmail().equalsIgnoreCase(usuarioAutenticadoEmail)) {
+            throw new AccessDeniedException("No tiene autorización para consultar esta ruta.");
+        }
+
+        Ruta ruta = rutaRepository.findByConductorIdAndFecha(conductor.getId(), LocalDate.now())
                 .orElseThrow(() -> RutaNoEncontradaException.paraConductor(conductorId));
 
         return mapToDTO(ruta);

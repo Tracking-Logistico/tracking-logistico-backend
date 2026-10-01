@@ -10,6 +10,7 @@ import com.udea.demo.rutas.interfaces.services.RutaServiceI;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -38,8 +39,9 @@ public class RutaController {
 
     // Consulta de apoyo para revisar la ruta antes de organizarla
     @GetMapping("/conductores/{conductorId}")
-    public ResponseEntity<RutaResponseDTO> obtenerRutaDeConductor(@PathVariable Long conductorId) {
-        return ResponseEntity.ok(rutaService.obtenerRutaActivaDeConductor(conductorId));
+    public ResponseEntity<RutaResponseDTO> obtenerRutaDeConductor(
+            @PathVariable Long conductorId, Authentication authentication) {
+        return ResponseEntity.ok(rutaService.obtenerRutaActivaDeConductor(conductorId, authentication.getName()));
     }
 
     // Criterio 3: Organización de la ruta

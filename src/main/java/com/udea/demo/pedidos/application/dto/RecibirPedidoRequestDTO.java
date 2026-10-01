@@ -1,44 +1,24 @@
 package com.udea.demo.pedidos.application.dto;
 
 import com.udea.demo.pedidos.domain.model.TipoServicio;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 public record RecibirPedidoRequestDTO(
-
-    @NotNull(message = "El cliente es obligatorio")
-    Long clienteId,
-
-    @NotBlank(message = "La dirección de origen es obligatoria")
-    @Size(max = 250, message = "La dirección de origen no puede superar 250 caracteres")
-    String direccionOrigen,
-
-    @NotBlank(message = "La dirección de destino es obligatoria")
-    @Size(max = 250, message = "La dirección de destino no puede superar 250 caracteres")
-    String direccionDestino,
-
-    @NotBlank(message = "La descripción del paquete es obligatoria")
-    @Size(max = 255, message = "La descripción no puede superar 255 caracteres")
-    String descripcionPaquete,
-
-    @NotNull(message = "El peso es obligatorio")
-    @Positive(message = "El peso debe ser mayor a 0")
-    Double pesoKg,
-
-    @NotNull(message = "El largo es obligatorio")
-    @Positive(message = "El largo debe ser mayor a 0")
-    Double largoCm,
-
-    @NotNull(message = "El ancho es obligatorio")
-    @Positive(message = "El ancho debe ser mayor a 0")
-    Double anchoCm,
-
-    @NotNull(message = "El alto es obligatorio")
-    @Positive(message = "El alto debe ser mayor a 0")
-    Double altoCm,
-
-    @NotNull(message = "El tipo de servicio es obligatorio")
-    TipoServicio tipoServicio
+    @NotBlank(message = "La dirección de origen es obligatoria") @Size(min = 8, max = 250) String direccionOrigen,
+    @NotBlank(message = "La ciudad de origen es obligatoria") @Size(max = 100) String ciudadOrigen,
+    @Pattern(regexp = "^(|[\\p{L}0-9 -]{3,12})$", message = "El código postal de origen no es válido") String codigoPostalOrigen,
+    @NotBlank(message = "La dirección de destino es obligatoria") @Size(min = 8, max = 250) String direccionDestino,
+    @NotBlank(message = "La ciudad de destino es obligatoria") @Size(max = 100) String ciudadDestino,
+    @Pattern(regexp = "^(|[\\p{L}0-9 -]{3,12})$", message = "El código postal de destino no es válido") String codigoPostalDestino,
+    @NotBlank(message = "La descripción del paquete es obligatoria") @Size(max = 255) String descripcionPaquete,
+    @NotNull @Positive @Digits(integer = 8, fraction = 2) Double pesoKg,
+    @NotNull @Positive @Digits(integer = 8, fraction = 2) Double largoCm,
+    @NotNull @Positive @Digits(integer = 8, fraction = 2) Double anchoCm,
+    @NotNull @Positive @Digits(integer = 8, fraction = 2) Double altoCm,
+    @NotNull TipoServicio tipoServicio,
+    @NotBlank(message = "El nombre del destinatario es obligatorio") @Size(max = 120) String destinatarioNombre,
+    @NotBlank(message = "El teléfono del destinatario es obligatorio")
+    @Pattern(regexp = "^\\+?[1-9][0-9]{7,14}$", message = "El teléfono del destinatario no tiene un formato válido") String destinatarioTelefono,
+    @NotBlank(message = "El teléfono del remitente es obligatorio")
+    @Pattern(regexp = "^\\+?[1-9][0-9]{7,14}$", message = "El teléfono del remitente no tiene un formato válido") String remitenteTelefono
 ) {}

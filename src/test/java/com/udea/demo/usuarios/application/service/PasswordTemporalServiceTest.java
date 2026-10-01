@@ -16,10 +16,9 @@ class PasswordTemporalServiceTest {
     @Test
     @DisplayName("generar() produce 16 caracteres con mayúscula, minúscula, dígito y especial")
     void generar_cumplePoliticaYLongitud() {
-        // Act
+
         String password = service.generar();
 
-        // Assert
         assertThat(password).hasSize(16);
         assertThat(password).matches(".*[A-Z].*");
         assertThat(password).matches(".*[a-z].*");
@@ -30,13 +29,12 @@ class PasswordTemporalServiceTest {
     @Test
     @DisplayName("generar() produce valores distintos en invocaciones sucesivas")
     void generar_noEsDeterminista() {
-        // Act
+
         Set<String> generadas = new HashSet<>();
         for (int i = 0; i < 8; i++) {
             generadas.add(service.generar());
         }
 
-        // Assert
         assertThat(generadas).hasSizeGreaterThan(1);
         assertThat(generadas).allMatch(p -> p.length() == 16);
     }

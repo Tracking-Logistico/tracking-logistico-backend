@@ -19,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.udea.demo.usuarios.application.service.AutenticacionService;
 import com.udea.demo.usuarios.domain.model.Rol;
+import com.udea.demo.usuarios.domain.model.EstadoUsuario;
 import com.udea.demo.usuarios.interfaces.persistence.SesionUsuarioRepository;
 
 @Component
@@ -39,7 +40,12 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = bearer(request);
-        if (token != null) {
+
+        boolean adminConApiKey = request.getRequestURI().startsWith("/api/v1/admin/")
+                && SecurityContextHolder.getContext().getAuthentication() != null
+                && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                    .anyMatch(a -> "ROLE_DBA".equals(a.getAuthority()));
+        if (token != null && !adminConApiKey) {
             sesionRepository.findByAccessTokenHash(AutenticacionService.hash(token)).ifPresent(sesion -> {
                 LocalDateTime ahora = LocalDateTime.now();
                 Rol rol = sesion.getUsuario().getRol();
@@ -48,16 +54,27 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
                 boolean vigente = sesion.getRevokedAt() == null
                         && sesion.getAccessTokenExpiresAt().isAfter(ahora)
                         && sesion.getLastActivityAt().plusMinutes(minutosInactividad).isAfter(ahora)
-                        && Boolean.TRUE.equals(sesion.getUsuario().getActivo());
+                        && Boolean.TRUE.equals(sesion.getUsuario().getActivo())
+                        && (sesion.getUsuario().getEstado() == EstadoUsuario.ACTIVO
+                            || sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION
+                            || (rol == Rol.CLIENTE
+                                && sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION));
                 if (vigente) {
                     if (Duration.between(sesion.getLastActivityAt(), ahora).getSeconds()
                             > UMBRAL_ACTUALIZACION_ACTIVIDAD_SEGUNDOS) {
                         sesion.setLastActivityAt(ahora);
+                        LocalDateTime limite = ahora.plusMinutes(minutosInactividad);
+                        if (limite.isAfter(sesion.getRefreshTokenExpiresAt())) {
+                            limite = sesion.getRefreshTokenExpiresAt();
+                        }
+                        sesion.setAccessTokenExpiresAt(limite);
                         sesionRepository.save(sesion);
                     }
+                    String authority = sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION
+                            ? "ROLE_PASSWORD_CHANGE" : "ROLE_" + rol.name();
                     var auth = new UsernamePasswordAuthenticationToken(
                             sesion.getUsuario().getEmail(), null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + rol.name())));
+                            List.of(new SimpleGrantedAuthority(authority)));
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
             });

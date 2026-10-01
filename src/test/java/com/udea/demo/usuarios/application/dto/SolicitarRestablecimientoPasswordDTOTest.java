@@ -34,14 +34,12 @@ class SolicitarRestablecimientoPasswordDTOTest {
         @Test
         @DisplayName("Email válido no produce violaciones de constraint")
         void emailValido_sinViolaciones() {
-            // Arrange
+
             String email = "cliente@correo.com";
             SolicitarRestablecimientoPasswordDTO dto = new SolicitarRestablecimientoPasswordDTO(email);
 
-            // Act
             Set<ConstraintViolation<SolicitarRestablecimientoPasswordDTO>> violations = validator.validate(dto);
 
-            // Assert
             assertThat(violations).isEmpty();
             assertThat(dto.email()).isEqualTo(email);
         }
@@ -56,13 +54,11 @@ class SolicitarRestablecimientoPasswordDTOTest {
         @ValueSource(strings = {"   ", "\t", "\n"})
         @DisplayName("Email en blanco produce violación @NotBlank")
         void emailEnBlanco_produceViolacion(String emailInvalido) {
-            // Arrange
+
             SolicitarRestablecimientoPasswordDTO dto = new SolicitarRestablecimientoPasswordDTO(emailInvalido);
 
-            // Act
             Set<ConstraintViolation<SolicitarRestablecimientoPasswordDTO>> violations = validator.validate(dto);
 
-            // Assert
             assertThat(violations).isNotEmpty();
             assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("email"));
         }
@@ -71,13 +67,11 @@ class SolicitarRestablecimientoPasswordDTOTest {
         @ValueSource(strings = {"sin-arroba", "correo@", "@servidor.com", "usuario con espacio@servidor.com"})
         @DisplayName("Email con formato inválido produce violación @Email")
         void emailFormatoInvalido_produceViolacion(String emailMalFormado) {
-            // Arrange
+
             SolicitarRestablecimientoPasswordDTO dto = new SolicitarRestablecimientoPasswordDTO(emailMalFormado);
 
-            // Act
             Set<ConstraintViolation<SolicitarRestablecimientoPasswordDTO>> violations = validator.validate(dto);
 
-            // Assert
             assertThat(violations).isNotEmpty();
             assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("email"));
         }

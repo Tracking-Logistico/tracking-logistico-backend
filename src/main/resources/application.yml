@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: tracking-logistico
+  profiles:
+    active: ${SPRING_PROFILE:h2}
+  mail:
+    host: ${MAIL_HOST:${SPRING_MAIL_HOST:smtp.gmail.com}}
+    port: ${MAIL_PORT:${SPRING_MAIL_PORT:587}}
+    username: ${MAIL_USERNAME:${SPRING_MAIL_USERNAME:}}
+    password: ${MAIL_PASSWORD:${SPRING_MAIL_PASSWORD:}}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:true}}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:true}}
+      mail.smtp.connectiontimeout: '3000'
+      mail.smtp.timeout: '5000'
+      mail.smtp.writetimeout: '5000'
+server:
+  address: 0.0.0.0
+  port: ${PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${SWAGGER_ENABLED:false}
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: 'false'
+app:
+  auth:
+    failed-attempt-window-minutes: ${AUTH_FAILED_ATTEMPT_WINDOW_MINUTES:10}
+    lock-minutes: ${AUTH_LOCK_MINUTES:15}
+    refresh-token-days: ${AUTH_REFRESH_TOKEN_DAYS:7}
+    password-reset-minutes: ${AUTH_PASSWORD_RESET_MINUTES:45}
+    password-reset-url: ${AUTH_PASSWORD_RESET_URL:http://localhost:5173/restablecer-password}
+    client-inactivity-minutes: ${AUTH_CLIENT_INACTIVITY_MINUTES:30}
+    operational-inactivity-minutes: ${AUTH_OPERATIONAL_INACTIVITY_MINUTES:15}
+  cors:
+    allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}
+  verification-url: ${APP_VERIFICATION_URL:http://localhost:5173/verificar}
+  dba:
+    api-key: ${DBA_API_KEY:}
+  mail:
+    enabled: ${MAIL_ENABLED:true}
+    provider: ${MAIL_PROVIDER:resend}
+    from: ${MAIL_FROM:}
+    resend-api-key: ${RESEND_API_KEY:}
+    log-action-links: ${MAIL_LOG_ACTION_LINKS:false}
+  shipment:
+    max-weight-kg: ${SHIPMENT_MAX_WEIGHT_KG:50}
+    max-dimension-cm: ${SHIPMENT_MAX_DIMENSION_CM:120}
+    max-volume-cm3: ${SHIPMENT_MAX_VOLUME_CM3:1000000}
+    express:
+      max-weight-kg: ${SHIPMENT_EXPRESS_MAX_WEIGHT_KG:20}
+      max-dimension-cm: ${SHIPMENT_EXPRESS_MAX_DIMENSION_CM:80}
+      max-volume-cm3: ${SHIPMENT_EXPRESS_MAX_VOLUME_CM3:500000}
+  operations:
+    time-zone: ${OPERATIONS_TIME_ZONE:America/Bogota}

@@ -19,8 +19,8 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins(allowedOrigin)
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("Authorization", "Content-Type")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                .allowedHeaders("Authorization", "Content-Type", "X-DBA-Key")
                 .allowCredentials(false);
     }
 
@@ -28,8 +28,8 @@ public class CorsConfig implements WebMvcConfigurer {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(java.util.List.of(allowedOrigin));
-        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type"));
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "X-DBA-Key"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);

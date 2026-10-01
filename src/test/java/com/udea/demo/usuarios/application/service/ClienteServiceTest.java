@@ -44,6 +44,15 @@ class ClienteServiceTest {
     @Mock private ClienteRepository clienteRepository;
     @Mock private TokenVerificacionRepository tokenRepository;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private com.udea.demo.usuarios.interfaces.services.EmailServiceI emailService;
+    @Mock private ActorAuthorizationService actorAuthorizationService;
+    @Mock private PasswordPolicyService passwordPolicyService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void configuration() {
+        org.springframework.test.util.ReflectionTestUtils.setField(clienteService,
+                "verificationUrl", "http://localhost:5173/verificar");
+    }
 
     @InjectMocks private ClienteService clienteService;
 
@@ -83,14 +92,12 @@ class ClienteServiceTest {
         @Test
         @DisplayName("Registro exitoso asigna Rol.CLIENTE, PENDIENTE_VERIFICACION y token de 2h")
         void registroExitoso_asignaRolEstadoYTokenDeDosHoras() {
-            // Arrange
+
             stubPersistenciaRegistro();
             LocalDateTime antes = LocalDateTime.now();
 
-            // Act
             ClienteResponseDTO respuesta = clienteService.registrarCliente(registroValido());
 
-            // Assert
             assertThat(respuesta.idCliente()).isEqualTo(10L);
             assertThat(respuesta.email()).isEqualTo("ana@tracking.com");
             assertThat(respuesta.rol()).isEqualTo(Rol.CLIENTE);
@@ -119,12 +126,26 @@ class ClienteServiceTest {
         }
 
         @Test
+        @DisplayName("Si falla el proveedor de correo se conserva el registro del cliente")
+        void falloCorreo_noBloqueaRegistro() {
+            stubPersistenciaRegistro();
+            org.mockito.Mockito.doThrow(new IllegalStateException("proveedor no disponible"))
+                    .when(emailService).enviarVerificacion(any(), any(), any());
+
+            ClienteResponseDTO respuesta = clienteService.registrarCliente(registroValido());
+
+            assertThat(respuesta.email()).isEqualTo("ana@tracking.com");
+            assertThat(respuesta.estado()).isEqualTo(EstadoUsuario.PENDIENTE_VERIFICACION);
+            verify(clienteRepository).save(any(Cliente.class));
+            verify(tokenRepository).save(any(TokenVerificacion.class));
+        }
+
+        @Test
         @DisplayName("Registro fallido por correo duplicado lanza IllegalArgumentException")
         void registroFallido_correoDuplicado() {
-            // Arrange
+
             when(usuarioRepository.existsByEmail("ana@tracking.com")).thenReturn(true);
 
-            // Act & Assert
             assertThatThrownBy(() -> clienteService.registrarCliente(registroValido()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("El correo ya se encuentra registrado");
@@ -136,12 +157,11 @@ class ClienteServiceTest {
         @Test
         @DisplayName("Registro fallido cuando las contraseñas no coinciden")
         void registroFallido_passwordsNoCoinciden() {
-            // Arrange
+
             RegistroClienteRequestDTO dto = new RegistroClienteRequestDTO(
                     "Ana Pérez", "ana@tracking.com", PASSWORD, "OtraClave123!",
                     "3001234567", "Calle 10", "Medellín", true, "T&C-v1.0");
 
-            // Act & Assert
             assertThatThrownBy(() -> clienteService.registrarCliente(dto))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Las contraseñas no coinciden");
@@ -158,7 +178,7 @@ class ClienteServiceTest {
         @Test
         @DisplayName("Token válido pasa la cuenta a ACTIVO y elimina el token")
         void tokenValido_activaCuentaYEliminaToken() {
-            // Arrange
+
             Usuario usuario = Usuario.builder()
                     .id(1L)
                     .email("ana@tracking.com")
@@ -172,10 +192,8 @@ class ClienteServiceTest {
                     .build();
             when(tokenRepository.findByToken("token-valido")).thenReturn(Optional.of(token));
 
-            // Act
             clienteService.verificarCuenta("token-valido");
 
-            // Assert
             assertThat(usuario.getEstado()).isEqualTo(EstadoUsuario.ACTIVO);
             verify(usuarioRepository).save(usuario);
             verify(tokenRepository).delete(token);
@@ -184,7 +202,7 @@ class ClienteServiceTest {
         @Test
         @DisplayName("Token expirado lanza IllegalArgumentException y no activa la cuenta")
         void tokenExpirado_lanzaExcepcion() {
-            // Arrange — el código de producción lanza IllegalArgumentException, no IllegalStateException
+
             Usuario usuario = Usuario.builder()
                     .id(1L)
                     .estado(EstadoUsuario.PENDIENTE_VERIFICACION)
@@ -196,7 +214,6 @@ class ClienteServiceTest {
                     .build();
             when(tokenRepository.findByToken("token-expirado")).thenReturn(Optional.of(token));
 
-            // Act & Assert
             assertThatThrownBy(() -> clienteService.verificarCuenta("token-expirado"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("El token de verificación ha expirado");
@@ -209,10 +226,9 @@ class ClienteServiceTest {
         @Test
         @DisplayName("Token inexistente lanza IllegalArgumentException")
         void tokenInvalido_lanzaExcepcion() {
-            // Arrange
+
             when(tokenRepository.findByToken("no-existe")).thenReturn(Optional.empty());
 
-            // Act & Assert
             assertThatThrownBy(() -> clienteService.verificarCuenta("no-existe"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Token de verificación inválido");
@@ -226,7 +242,7 @@ class ClienteServiceTest {
         @Test
         @DisplayName("Actualiza nombre, teléfono y dirección cuando vienen en el DTO")
         void actualizaCamposEditables() {
-            // Arrange
+
             Usuario usuario = Usuario.builder()
                     .id(1L)
                     .nombre("Ana")
@@ -241,10 +257,8 @@ class ClienteServiceTest {
             when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
             ActualizarPerfilRequestDTO dto = new ActualizarPerfilRequestDTO("Ana María", "3009999999", "Nueva 12");
 
-            // Act
             UsuarioResponseDTO respuesta = clienteService.actualizarPerfil(1L, dto);
 
-            // Assert
             assertThat(respuesta.nombre()).isEqualTo("Ana María");
             assertThat(respuesta.telefono()).isEqualTo("3009999999");
             assertThat(respuesta.direccion()).isEqualTo("Nueva 12");
@@ -255,7 +269,7 @@ class ClienteServiceTest {
         @Test
         @DisplayName("No sobrescribe teléfono ni dirección cuando vienen nulos")
         void camposOpcionalesNulos_conservaValores() {
-            // Arrange
+
             Usuario usuario = Usuario.builder()
                     .id(1L)
                     .nombre("Ana")
@@ -268,11 +282,9 @@ class ClienteServiceTest {
             when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
             when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            // Act
             UsuarioResponseDTO respuesta = clienteService.actualizarPerfil(
                     1L, new ActualizarPerfilRequestDTO("Ana Pérez", null, null));
 
-            // Assert
             assertThat(respuesta.nombre()).isEqualTo("Ana Pérez");
             assertThat(respuesta.telefono()).isEqualTo("3001111111");
             assertThat(respuesta.direccion()).isEqualTo("Antigua");
@@ -281,10 +293,9 @@ class ClienteServiceTest {
         @Test
         @DisplayName("Usuario inexistente lanza IllegalArgumentException")
         void usuarioNoEncontrado() {
-            // Arrange
+
             when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
 
-            // Act & Assert
             assertThatThrownBy(() -> clienteService.actualizarPerfil(
                     99L, new ActualizarPerfilRequestDTO("Nombre", "300", "Dir")))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -299,7 +310,7 @@ class ClienteServiceTest {
         @Test
         @DisplayName("Baja lógica: activo=false y estado=INACTIVO")
         void bajaLogica_inactivaUsuario() {
-            // Arrange
+
             Usuario usuario = Usuario.builder()
                     .id(1L)
                     .activo(true)
@@ -308,10 +319,8 @@ class ClienteServiceTest {
             Cliente cliente = Cliente.builder().id(10L).usuario(usuario).build();
             when(clienteRepository.findById(10L)).thenReturn(Optional.of(cliente));
 
-            // Act
             clienteService.desactivarCuentaCliente(10L);
 
-            // Assert
             assertThat(usuario.getActivo()).isFalse();
             assertThat(usuario.getEstado()).isEqualTo(EstadoUsuario.INACTIVO);
             verify(usuarioRepository).save(usuario);
@@ -320,10 +329,9 @@ class ClienteServiceTest {
         @Test
         @DisplayName("Cliente inexistente lanza IllegalArgumentException")
         void clienteNoEncontrado() {
-            // Arrange
+
             when(clienteRepository.findById(77L)).thenReturn(Optional.empty());
 
-            // Act & Assert
             assertThatThrownBy(() -> clienteService.desactivarCuentaCliente(77L))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Cliente no encontrado con ID: 77");

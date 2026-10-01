@@ -1,5 +1,6 @@
 package com.udea.demo.usuarios.infrastructure.controller;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,6 +14,7 @@ import com.udea.demo.usuarios.interfaces.services.UsuarioInternoServiceI;
 import jakarta.validation.Valid;
 
 @RestController
+@SecurityRequirement(name = "bearerAuth")
 @RequestMapping("/api/v1/usuarios")
 public class UsuarioControler {
     private final UsuarioInternoServiceI usuarioInternoService;

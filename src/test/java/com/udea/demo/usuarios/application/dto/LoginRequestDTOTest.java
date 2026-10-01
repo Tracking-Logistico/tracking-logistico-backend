@@ -34,15 +34,13 @@ class LoginRequestDTOTest {
         @Test
         @DisplayName("LoginRequestDTO con credenciales válidas no produce violaciones")
         void credencialesValidas_sinViolaciones() {
-            // Arrange
+
             String email = "operador@tracking.com";
             String password = "Password123!";
             LoginRequestDTO dto = new LoginRequestDTO(email, password);
 
-            // Act
             Set<ConstraintViolation<LoginRequestDTO>> violations = validator.validate(dto);
 
-            // Assert
             assertThat(violations).isEmpty();
             assertThat(dto.email()).isEqualTo(email);
             assertThat(dto.password()).isEqualTo(password);
@@ -58,13 +56,11 @@ class LoginRequestDTOTest {
         @ValueSource(strings = {"   ", "\t", "\n"})
         @DisplayName("Email nulo o en blanco produce violación @NotBlank")
         void emailEnBlanco_produceViolacion(String emailInvalido) {
-            // Arrange
+
             LoginRequestDTO dto = new LoginRequestDTO(emailInvalido, "Password123!");
 
-            // Act
             Set<ConstraintViolation<LoginRequestDTO>> violations = validator.validate(dto);
 
-            // Assert
             assertThat(violations).isNotEmpty();
             assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("email"));
         }
@@ -73,13 +69,11 @@ class LoginRequestDTOTest {
         @ValueSource(strings = {"correo-sin-arroba", "usuario@", "@dominio.com", "usuario con espacio@dominio.com"})
         @DisplayName("Email con formato incorrecto produce violación @Email")
         void emailFormatoIncorrecto_produceViolacion(String emailMalFormado) {
-            // Arrange
+
             LoginRequestDTO dto = new LoginRequestDTO(emailMalFormado, "Password123!");
 
-            // Act
             Set<ConstraintViolation<LoginRequestDTO>> violations = validator.validate(dto);
 
-            // Assert
             assertThat(violations).isNotEmpty();
             assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("email"));
         }
@@ -94,13 +88,11 @@ class LoginRequestDTOTest {
         @ValueSource(strings = {"   ", "\t"})
         @DisplayName("Password nula o en blanco produce violación @NotBlank")
         void passwordEnBlanco_produceViolacion(String passwordInvalida) {
-            // Arrange
+
             LoginRequestDTO dto = new LoginRequestDTO("usuario@tracking.com", passwordInvalida);
 
-            // Act
             Set<ConstraintViolation<LoginRequestDTO>> violations = validator.validate(dto);
 
-            // Assert
             assertThat(violations).isNotEmpty();
             assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("password"));
         }

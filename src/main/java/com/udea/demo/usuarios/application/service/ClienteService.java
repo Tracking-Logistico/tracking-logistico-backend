@@ -4,9 +4,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.access.AccessDeniedException;
+import com.udea.demo.usuarios.interfaces.services.EmailServiceI;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,29 +31,36 @@ public class ClienteService implements ClienteServiceI {
     private final ClienteRepository clienteRepository;
     private final TokenVerificacionRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JavaMailSender mailSender;
+    private final EmailServiceI emailService;
+    private final ActorAuthorizationService actorAuthorizationService;
+    private final PasswordPolicyService passwordPolicyService;
 
-    @Value("${app.auth.verification-url:https://tracking-logistico-backend.onrender.com/api/v1/clientes/verificar}")
-    private String verificationUrl = "https://tracking-logistico-backend.onrender.com/api/v1/clientes/verificar";
+    @Value("${app.verification-url}")
+    private String verificationUrl;
 
     public ClienteService(UsuarioRepository usuarioRepository,
                           ClienteRepository clienteRepository,
                           TokenVerificacionRepository tokenRepository,
                           PasswordEncoder passwordEncoder,
-                          JavaMailSender mailSender) {
+                          EmailServiceI emailService,
+                          ActorAuthorizationService actorAuthorizationService,
+                          PasswordPolicyService passwordPolicyService) {
         this.usuarioRepository = usuarioRepository;
         this.clienteRepository = clienteRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
-        this.mailSender = mailSender;
+        this.emailService = emailService;
+        this.actorAuthorizationService = actorAuthorizationService;
+        this.passwordPolicyService = passwordPolicyService;
     }
 
-    @Override 
+    @Override
     @Transactional
     public ClienteResponseDTO registrarCliente(RegistroClienteRequestDTO dto) {
         if (!dto.password().equals(dto.confirmarPassword())) {
             throw new IllegalArgumentException("Las contraseñas no coinciden");
         }
+        passwordPolicyService.validar(dto.password(), dto.email(), dto.nombre());
         if (usuarioRepository.existsByEmail(dto.email())) {
             throw new IllegalArgumentException("El correo ya se encuentra registrado");
         }
@@ -71,6 +77,9 @@ public class ClienteService implements ClienteServiceI {
                 .aceptoTerminos(dto.aceptoTerminos())
                 .versionTerminos(dto.versionTerminos())
                 .fechaAceptacionTerminos(LocalDateTime.now())
+                .aceptoPoliticaDatos(dto.aceptoPoliticaDatos())
+                .versionPoliticaDatos(dto.versionPoliticaDatos())
+                .fechaAceptacionPoliticaDatos(LocalDateTime.now())
                 .fechaCreacion(LocalDateTime.now())
                 .build();
 
@@ -84,33 +93,39 @@ public class ClienteService implements ClienteServiceI {
 
         String tokenUUID = UUID.randomUUID().toString();
         TokenVerificacion tokenVerificacion = TokenVerificacion.builder()
-            .token(AutenticacionService.hash(tokenUUID))
+                .token(AutenticacionService.hash(tokenUUID))
                 .usuario(guardado)
                 .fechaExpiracion(LocalDateTime.now().plusHours(2))
                 .build();
 
         tokenRepository.save(tokenVerificacion);
-
-        enviarCorreoVerificacion(guardado.getEmail(), guardado.getNombre(), tokenUUID);
+        emailService.enviarVerificacion(guardado.getEmail(), guardado.getNombre(),
+                verificationUrl + (verificationUrl.contains("?") ? "&" : "?") + "token=" + tokenUUID);
 
         return mapToClienteResponseDTO(cliente);
     }
 
-    private void enviarCorreoVerificacion(String emailDestino, String nombreUsuario, String token) {
-        String urlVerificacion = verificationUrl + "?token=" + token;
+    @Override
+    @Transactional
+    public void reenviarVerificacion(String email) {
+        usuarioRepository.findByEmail(email).filter(usuario -> usuario.getRol() == Rol.CLIENTE
+                && Boolean.TRUE.equals(usuario.getActivo())
+                && usuario.getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION).ifPresent(usuario -> {
+            var anterior = tokenRepository.findByUsuarioId(usuario.getId());
 
-        SimpleMailMessage mensaje = new SimpleMailMessage();
-        mensaje.setTo(emailDestino);
-        mensaje.setSubject("Verificación de Cuenta - Tracking Logístico");
-        mensaje.setText("Hola " + nombreUsuario + ",\n\n"
-                + "¡Gracias por registrarte! Para activar tu cuenta, ingresa al siguiente enlace:\n"
-                + urlVerificacion + "\n\n"
-                + "Este enlace expira en 2 horas.");
-
-        mailSender.send(mensaje);
+            if (anterior.isPresent() && anterior.get().getFechaExpiracion().minusHours(2)
+                    .isAfter(LocalDateTime.now().minusMinutes(1))) return;
+            TokenVerificacion verificacion = anterior.orElseGet(() -> TokenVerificacion.builder().usuario(usuario).build());
+            String token = UUID.randomUUID().toString();
+            verificacion.setToken(AutenticacionService.hash(token));
+            verificacion.setFechaExpiracion(LocalDateTime.now().plusHours(2));
+            tokenRepository.save(verificacion);
+            emailService.enviarVerificacion(usuario.getEmail(), usuario.getNombre(),
+                    verificationUrl + (verificationUrl.contains("?") ? "&" : "?") + "token=" + token);
+        });
     }
 
-    @Override 
+    @Override
     @Transactional
     public void verificarCuenta(String token) {
         TokenVerificacion tokenVerificacion = tokenRepository.findByToken(AutenticacionService.hash(token))
@@ -121,13 +136,44 @@ public class ClienteService implements ClienteServiceI {
         }
 
         Usuario usuario = tokenVerificacion.getUsuario();
+        if (usuario.getRol() != Rol.CLIENTE
+                || usuario.getEstado() != EstadoUsuario.PENDIENTE_VERIFICACION
+                || !Boolean.TRUE.equals(usuario.getActivo())) {
+            throw new IllegalArgumentException("El token ya no corresponde a una cuenta pendiente de verificación");
+        }
         usuario.setEstado(EstadoUsuario.ACTIVO);
         usuarioRepository.save(usuario);
 
         tokenRepository.delete(tokenVerificacion);
     }
 
-    @Override 
+    @Override
+    @Transactional(readOnly = true)
+    public ClienteResponseDTO obtenerPerfilActual() {
+        Long clienteId = actorAuthorizationService.clienteActualId();
+        Cliente cliente = clienteRepository.findById(clienteId)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+        return mapToClienteResponseDTO(cliente);
+    }
+
+    @Override
+    @Transactional
+    public UsuarioResponseDTO actualizarPerfilActual(ActualizarPerfilRequestDTO dto) {
+        Usuario usuario = actorAuthorizationService.actorActual();
+        return actualizarUsuario(usuario, dto);
+    }
+
+    @Override
+    @Transactional
+    public void desactivarCuentaActual() {
+        Usuario usuario = actorAuthorizationService.actorActual();
+        if (usuario.getRol() != Rol.CLIENTE) throw new IllegalArgumentException("La cuenta no corresponde a un cliente");
+        usuario.setActivo(false);
+        usuario.setEstado(EstadoUsuario.INACTIVO);
+        usuarioRepository.save(usuario);
+    }
+
+    @Override
     @Transactional
     public UsuarioResponseDTO actualizarPerfil(Long id, ActualizarPerfilRequestDTO dto,
                                                 String usuarioAutenticadoEmail) {
@@ -135,22 +181,17 @@ public class ClienteService implements ClienteServiceI {
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
         validarPropietario(usuario, usuarioAutenticadoEmail);
 
-        usuario.setNombre(dto.nombre());
-        if (dto.telefono() != null) usuario.setTelefono(dto.telefono());
-        if (dto.direccion() != null) usuario.setDireccion(dto.direccion());
-
-        Usuario actualizado = usuarioRepository.save(usuario);
-
-        return mapToUsuarioDTO(actualizado);
+        actorAuthorizationService.exigirPropietario(usuario.getId(), Rol.CLIENTE);
+        return actualizarUsuario(usuario, dto);
     }
 
     @Override
     @Transactional
     public void desactivarCuentaCliente(Long id, String usuarioAutenticadoEmail) {
-        Cliente cliente = clienteRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado con ID: " + id));
-        Usuario u = cliente.getUsuario();
+        Usuario u = usuarioRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
         validarPropietario(u, usuarioAutenticadoEmail);
+        actorAuthorizationService.exigirPropietario(u.getId(), Rol.CLIENTE);
         u.setActivo(false);
         u.setEstado(EstadoUsuario.INACTIVO);
         usuarioRepository.save(u);
@@ -160,6 +201,13 @@ public class ClienteService implements ClienteServiceI {
         if (!usuario.getEmail().equalsIgnoreCase(usuarioAutenticadoEmail)) {
             throw new AccessDeniedException("No tiene autorización para modificar este recurso.");
         }
+    }
+
+    private UsuarioResponseDTO actualizarUsuario(Usuario usuario, ActualizarPerfilRequestDTO dto) {
+        usuario.setNombre(dto.nombre());
+        if (dto.telefono() != null) usuario.setTelefono(dto.telefono());
+        if (dto.direccion() != null) usuario.setDireccion(dto.direccion());
+        return mapToUsuarioDTO(usuarioRepository.save(usuario));
     }
 
     private ClienteResponseDTO mapToClienteResponseDTO(Cliente c) {

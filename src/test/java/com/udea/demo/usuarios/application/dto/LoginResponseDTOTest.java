@@ -14,7 +14,7 @@ class LoginResponseDTOTest {
     @Test
     @DisplayName("Crea instancia correcta y expone todos sus campos con los valores esperados")
     void crearInstancia_asignaCamposCorrectamente() {
-        // Arrange
+
         String accessToken = "access-token-xyz";
         String refreshToken = "refresh-token-abc";
         LocalDateTime accessExpires = LocalDateTime.of(2026, 9, 19, 12, 30);
@@ -22,12 +22,10 @@ class LoginResponseDTOTest {
         Rol rol = Rol.OPERADOR;
         String panel = "/panel/operador";
 
-        // Act
         LoginResponseDTO dto = new LoginResponseDTO(
                 accessToken, refreshToken, accessExpires, refreshExpires, rol, panel
         );
 
-        // Assert
         assertThat(dto.accessToken()).isEqualTo(accessToken);
         assertThat(dto.refreshToken()).isEqualTo(refreshToken);
         assertThat(dto.accessTokenExpiresAt()).isEqualTo(accessExpires);

@@ -1,6 +1,5 @@
 package com.udea.demo.usuarios.application.dto;
 
-
 import com.udea.demo.usuarios.domain.model.Rol;
 import jakarta.validation.constraints.*;
 
@@ -25,11 +24,9 @@ public record CrearUsuarioInternoCommand(
     @Size(max = 200, message = "La dirección no puede superar 200 caracteres")
     String direccion,
 
-    // Solo aplica si rol = CONDUCTOR
     @Size(max = 50, message = "La licencia no puede superar 50 caracteres")
     String licencia,
 
-    // Solo aplica si rol = OPERADOR
     @Size(max = 50, message = "El código de empleado no puede superar 50 caracteres")
     String codigoEmpleado
 ) {}

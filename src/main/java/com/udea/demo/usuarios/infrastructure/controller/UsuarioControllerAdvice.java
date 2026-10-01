@@ -1,5 +1,7 @@
 package com.udea.demo.usuarios.infrastructure.controller;
 
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -23,6 +25,7 @@ import com.udea.demo.usuarios.domain.exception.TokenRestablecimientoInvalidoExce
 import java.util.HashMap;
 import java.util.Map;
 
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
 public class UsuarioControllerAdvice {
 
@@ -56,7 +59,7 @@ public class UsuarioControllerAdvice {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> manejarValidaciones(MethodArgumentNotValidException ex) {
         Map<String, String> errores = new HashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(error -> 
+        ex.getBindingResult().getFieldErrors().forEach(error ->
             errores.put(error.getField(), error.getDefaultMessage())
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errores);

@@ -1,31 +1,22 @@
 package com.udea.demo.pedidos.interfaces.services;
 
-import com.udea.demo.pedidos.application.dto.EtiquetaEnvioResponseDTO;
-import com.udea.demo.pedidos.application.dto.PedidoResponseDTO;
-import com.udea.demo.pedidos.application.dto.RecibirPedidoRequestDTO;
-import com.udea.demo.pedidos.application.dto.ValidarPedidoRequestDTO;
-
+import com.udea.demo.pedidos.application.dto.*;
 import java.util.List;
 
 public interface PedidoServiceI {
-
     PedidoResponseDTO recibir(RecibirPedidoRequestDTO dto);
-
+    PedidoResponseDTO corregir(Long id, RecibirPedidoRequestDTO dto);
+    List<PedidoResponseDTO> listarMios();
     List<PedidoResponseDTO> listarPendientes();
-
     List<PedidoResponseDTO> listarValidados();
-
     List<PedidoResponseDTO> listarActivables();
-
-    PedidoResponseDTO obtener(Long id);
-
-    PedidoResponseDTO obtenerPorTracking(String numeroTracking);
-
-    PedidoResponseDTO validar(Long id, ValidarPedidoRequestDTO dto);
-
-    PedidoResponseDTO activarTracking(Long id);
-
-    EtiquetaEnvioResponseDTO generarEtiqueta(Long id);
-
+    List<PedidoResponseDTO> listarDespachos();
     List<PedidoResponseDTO> listarEnTransito();
+    PedidoResponseDTO obtener(Long id);
+    PedidoResponseDTO obtenerPorTracking(String numeroTracking);
+    PedidoResponseDTO validar(Long id, ValidarPedidoRequestDTO dto);
+    PedidoResponseDTO activarTracking(Long id);
+    PedidoResponseDTO cambiarEstadoLogistico(Long id, CambiarEstadoLogisticoRequestDTO dto);
+    EtiquetaEnvioResponseDTO generarEtiqueta(Long id);
+    List<HistorialPedidoResponseDTO> historial(Long id);
 }

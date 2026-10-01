@@ -1,6 +1,5 @@
 package com.udea.demo.usuarios.application.service;
 
-
 import com.udea.demo.usuarios.application.dto.*;
 import com.udea.demo.usuarios.domain.exception.*;
 import com.udea.demo.usuarios.domain.model.*;
@@ -17,21 +16,33 @@ import java.time.LocalDateTime;
 public class UsuarioInternoService implements UsuarioInternoServiceI {
 
     private final UsuarioRepository usuarioRepository;
+    private final ClienteRepository clienteRepository;
     private final ConductorRepository conductorRepository;
     private final OperadorRepository operadorRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordTemporalService passwordTemporalService;
+    private final ActorAuthorizationService actorAuthorizationService;
+    private final SesionUsuarioRepository sesionRepository;
+    private final PasswordPolicyService passwordPolicyService;
 
     public UsuarioInternoService(UsuarioRepository usuarioRepository,
+                                 ClienteRepository clienteRepository,
                                  ConductorRepository conductorRepository,
                                  OperadorRepository operadorRepository,
                                  PasswordEncoder passwordEncoder,
-                                 PasswordTemporalService passwordTemporalService) {
+                                 PasswordTemporalService passwordTemporalService,
+                                 ActorAuthorizationService actorAuthorizationService,
+                                 SesionUsuarioRepository sesionRepository,
+                                 PasswordPolicyService passwordPolicyService) {
         this.usuarioRepository = usuarioRepository;
+        this.clienteRepository = clienteRepository;
         this.conductorRepository = conductorRepository;
         this.operadorRepository = operadorRepository;
         this.passwordEncoder = passwordEncoder;
         this.passwordTemporalService = passwordTemporalService;
+        this.actorAuthorizationService = actorAuthorizationService;
+        this.sesionRepository = sesionRepository;
+        this.passwordPolicyService = passwordPolicyService;
     }
 
     @Override
@@ -42,7 +53,6 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
             throw new RolInternoInvalidoException();
         }
 
-        // validaciones específicas por rol
         if (command.rol() == Rol.CONDUCTOR && esVacio(command.licencia())) {
             throw new LicenciaRequeridaException();
         }
@@ -54,10 +64,9 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
             throw new EmailYaRegistradoException(command.email());
         }
 
-        // validar unicidad del código de empleado
         if (command.rol() == Rol.OPERADOR
                 && operadorRepository.existsByCodigoEmpleado(command.codigoEmpleado())) {
-            throw new CodigoEmpleadoRequeridoException(); // o una excepción de duplicado
+            throw new CodigoEmpleadoRequeridoException();
         }
 
         String passwordTemporal = passwordTemporalService.generar();
@@ -97,52 +106,56 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         if (command.telefono() != null) usuario.setTelefono(command.telefono());
         if (command.direccion() != null) usuario.setDireccion(command.direccion());
 
-        // cambio de rol
-        if (command.rol() != null && !command.rol().equals(usuario.getRol())) {
-            if (command.rol() != Rol.OPERADOR && command.rol() != Rol.CONDUCTOR) {
-                throw new RolInternoInvalidoException();
-            }
+        Rol destino = command.rol() == null ? usuario.getRol() : command.rol();
 
-            // validar datos requeridos para el nuevo rol
-            if (command.rol() == Rol.CONDUCTOR && esVacio(command.licencia())) {
-                throw new LicenciaRequeridaException();
+        if (destino == Rol.CONDUCTOR) {
+            conductorRepository.findByUsuarioId(id).ifPresentOrElse(conductor -> {
+                if (command.licencia() != null) {
+                    if (esVacio(command.licencia())) throw new LicenciaRequeridaException();
+                    conductor.setLicencia(command.licencia());
+                    conductorRepository.save(conductor);
+                }
+            }, () -> {
+                if (esVacio(command.licencia())) throw new LicenciaRequeridaException();
+                crearFilaSegunRol(usuario, Rol.CONDUCTOR, command.licencia(), null);
+            });
+        } else if (destino == Rol.OPERADOR) {
+            operadorRepository.findByUsuarioId(id).ifPresentOrElse(operador -> {
+                if (command.codigoEmpleado() != null) {
+                    if (esVacio(command.codigoEmpleado())) throw new CodigoEmpleadoRequeridoException();
+                    if (!command.codigoEmpleado().equals(operador.getCodigoEmpleado())
+                            && operadorRepository.existsByCodigoEmpleado(command.codigoEmpleado())) {
+                        throw new IllegalArgumentException("El código de empleado ya está registrado");
+                    }
+                    operador.setCodigoEmpleado(command.codigoEmpleado());
+                    operadorRepository.save(operador);
+                }
+            }, () -> {
+                if (esVacio(command.codigoEmpleado())) throw new CodigoEmpleadoRequeridoException();
+                if (operadorRepository.existsByCodigoEmpleado(command.codigoEmpleado())) {
+                    throw new IllegalArgumentException("El código de empleado ya está registrado");
+                }
+                crearFilaSegunRol(usuario, Rol.OPERADOR, null, command.codigoEmpleado());
+            });
+        } else if (destino == Rol.CLIENTE) {
+            if (clienteRepository.findByUsuarioId(id).isEmpty()) {
+                clienteRepository.save(Cliente.builder().usuario(usuario).build());
             }
-            if (command.rol() == Rol.OPERADOR && esVacio(command.codigoEmpleado())) {
-                throw new CodigoEmpleadoRequeridoException();
-            }
-
-            // borrar fila del rol anterior
-            if (usuario.getRol() == Rol.CONDUCTOR) {
-                conductorRepository.deleteByUsuarioId(usuario.getId());
-            } else if (usuario.getRol() == Rol.OPERADOR) {
-                operadorRepository.deleteByUsuarioId(usuario.getId());
-            }
-
-            // crear fila del nuevo rol
-            crearFilaSegunRol(usuario, command.rol(),
-                              command.licencia(), command.codigoEmpleado());
-
-            usuario.setRol(command.rol());
         } else {
-            // mismo rol: actualizar datos de la tabla específica si vienen
-            if (usuario.getRol() == Rol.CONDUCTOR && command.licencia() != null) {
-                conductorRepository.findByUsuarioId(usuario.getId())
-                        .ifPresent(c -> {
-                            c.setLicencia(command.licencia());
-                            conductorRepository.save(c);
-                        });
-            }
-            if (usuario.getRol() == Rol.OPERADOR && command.codigoEmpleado() != null) {
-                operadorRepository.findByUsuarioId(usuario.getId())
-                        .ifPresent(o -> {
-                            o.setCodigoEmpleado(command.codigoEmpleado());
-                            operadorRepository.save(o);
-                        });
-            }
+            throw new RolInternoInvalidoException();
         }
 
-        Usuario actualizado = usuarioRepository.save(usuario);
-        return mapToDTO(actualizado);
+        if (destino != usuario.getRol()) {
+            usuario.setRol(destino);
+
+            if (usuario.getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION) {
+                usuario.setEstado(EstadoUsuario.ACTIVO);
+            }
+
+            sesionRepository.deleteByUsuarioId(id);
+        }
+
+        return mapToDTO(usuarioRepository.save(usuario));
     }
 
     @Override
@@ -151,10 +164,14 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new UsuarioNoEncontradoException(id));
 
+        if (usuario.getRol() != Rol.OPERADOR && usuario.getRol() != Rol.CONDUCTOR) {
+            throw new RolInternoInvalidoException();
+        }
         usuario.setActivo(false);
         usuario.setEstado(EstadoUsuario.INACTIVO);
         usuarioRepository.save(usuario);
-        // no se borran conductor/operador: se conserva historial
+
+        sesionRepository.deleteByUsuarioId(usuario.getId());
     }
 
     @Override
@@ -168,11 +185,14 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
             throw new AccessDeniedException("No tiene autorización para cambiar esta contraseña.");
         }
 
+        actorAuthorizationService.exigirPropietario(id, usuario.getRol());
+
         if (!nuevaPassword.equals(confirmarPassword)) {
             throw new PasswordNoCoincideException();
         }
+        passwordPolicyService.validar(nuevaPassword, usuario.getEmail(), usuario.getNombre());
 
-        if (!usuario.getActivo()) {
+        if (!Boolean.TRUE.equals(usuario.getActivo())) {
             throw new CuentaInactivaException();
         }
 
@@ -191,9 +211,8 @@ public class UsuarioInternoService implements UsuarioInternoServiceI {
         }
 
         usuarioRepository.save(usuario);
+        sesionRepository.deleteByUsuarioId(usuario.getId());
     }
-
-    // ---------- helpers ----------
 
     private void crearFilaSegunRol(Usuario usuario, Rol rol,
                                    String licencia, String codigoEmpleado) {

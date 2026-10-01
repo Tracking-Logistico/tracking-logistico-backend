@@ -49,11 +49,10 @@ class UsuarioControlerTest {
         @Test
         @DisplayName("200 OK cuando el cambio de clave es exitoso")
         void cambiarPassword_devuelve200() throws Exception {
-            // Arrange
+
             CambiarPasswordRequestDTO dto = new CambiarPasswordRequestDTO(
                     "Temporal1!", "NuevaClave1!", "NuevaClave1!");
 
-            // Act & Assert
             mockMvc.perform(put("/api/v1/usuarios/20/password")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
@@ -66,14 +65,13 @@ class UsuarioControlerTest {
         @Test
         @DisplayName("400 Bad Request cuando las confirmaciones no coinciden")
         void cambiarPassword_noCoincide_devuelve400() throws Exception {
-            // Arrange
+
             CambiarPasswordRequestDTO dto = new CambiarPasswordRequestDTO(
                     "Temporal1!", "NuevaClave1!", "NuevaClave1!");
             doThrow(new PasswordNoCoincideException())
                     .when(usuarioInternoService)
                     .cambiarPassword(20L, "Temporal1!", "NuevaClave1!", "NuevaClave1!");
 
-            // Act & Assert
             mockMvc.perform(put("/api/v1/usuarios/20/password")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))

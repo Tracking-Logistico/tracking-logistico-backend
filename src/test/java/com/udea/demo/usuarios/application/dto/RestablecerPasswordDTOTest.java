@@ -34,16 +34,14 @@ class RestablecerPasswordDTOTest {
         @Test
         @DisplayName("Instancia con todos los campos no vacíos pasa la validación")
         void camposValidos_sinViolaciones() {
-            // Arrange
+
             String token = "reset-token-xyz";
             String nuevaPassword = "PasswordSegura123!";
             String confirmarPassword = "PasswordSegura123!";
             RestablecerPasswordDTO dto = new RestablecerPasswordDTO(token, nuevaPassword, confirmarPassword);
 
-            // Act
             Set<ConstraintViolation<RestablecerPasswordDTO>> violations = validator.validate(dto);
 
-            // Assert
             assertThat(violations).isEmpty();
             assertThat(dto.token()).isEqualTo(token);
             assertThat(dto.nuevaPassword()).isEqualTo(nuevaPassword);

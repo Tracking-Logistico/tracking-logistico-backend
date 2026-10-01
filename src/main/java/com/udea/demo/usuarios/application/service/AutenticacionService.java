@@ -50,6 +50,7 @@ public class AutenticacionService implements AutenticacionServiceI {
     private final TokenRestablecimientoPasswordRepository resetRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailServiceI emailService;
+    private final PasswordPolicyService passwordPolicyService;
 
     @Value("${app.auth.failed-attempt-window-minutes:10}")
     private long ventanaIntentosMinutos;
@@ -71,13 +72,15 @@ public class AutenticacionService implements AutenticacionServiceI {
                                 SesionUsuarioRepository sesionRepository,
                                 TokenRestablecimientoPasswordRepository resetRepository,
                                 PasswordEncoder passwordEncoder,
-                                EmailServiceI emailService) {
+                                EmailServiceI emailService,
+                                PasswordPolicyService passwordPolicyService) {
         this.usuarioRepository = usuarioRepository;
         this.intentoRepository = intentoRepository;
         this.sesionRepository = sesionRepository;
         this.resetRepository = resetRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
+        this.passwordPolicyService = passwordPolicyService;
     }
 
     @Override
@@ -91,7 +94,11 @@ public class AutenticacionService implements AutenticacionServiceI {
         }
 
         Usuario usuario = usuarioRepository.findByEmail(request.email()).orElse(null);
-        if (usuario == null || usuario.getEstado() != EstadoUsuario.ACTIVO
+        boolean estadoLoginValido = usuario != null && (usuario.getEstado() == EstadoUsuario.ACTIVO
+                || usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION
+                || (usuario.getRol() == Rol.CLIENTE
+                    && usuario.getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION));
+        if (usuario == null || !estadoLoginValido
                 || !Boolean.TRUE.equals(usuario.getActivo())
                 || !passwordEncoder.matches(request.password(), usuario.getPassword())) {
             registrarFallo(request.email(), usuario, ahora, ip, userAgent);
@@ -108,8 +115,15 @@ public class AutenticacionService implements AutenticacionServiceI {
         LocalDateTime ahora = LocalDateTime.now();
         SesionUsuario sesion = sesionRepository.findByRefreshTokenHash(hash(request.refreshToken()))
                 .orElseThrow(SesionInvalidaException::new);
+        long minutosInactividad = sesion.getUsuario().getRol() == Rol.CLIENTE
+                ? minutosInactividadCliente : minutosInactividadOperativo;
         if (sesion.getRevokedAt() != null || sesion.getRefreshTokenExpiresAt().isBefore(ahora)
-                || !Boolean.TRUE.equals(sesion.getUsuario().getActivo())) {
+                || !sesion.getLastActivityAt().plusMinutes(minutosInactividad).isAfter(ahora)
+                || !Boolean.TRUE.equals(sesion.getUsuario().getActivo())
+                || !(sesion.getUsuario().getEstado() == EstadoUsuario.ACTIVO
+                    || sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION
+                    || (sesion.getUsuario().getRol() == Rol.CLIENTE
+                        && sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION))) {
             throw new SesionInvalidaException();
         }
         sesion.setRevokedAt(ahora);
@@ -146,8 +160,6 @@ public class AutenticacionService implements AutenticacionServiceI {
         if (!request.nuevaPassword().equals(request.confirmarPassword())) {
             throw new PasswordNoCoincideException();
         }
-        validarPassword(request.nuevaPassword());
-
         TokenRestablecimientoPassword token = resetRepository.findByTokenHash(hash(request.token()))
                 .orElseThrow(TokenRestablecimientoInvalidoException::new);
         if (token.getUsadoEn() != null || token.getExpiraEn().isBefore(LocalDateTime.now())) {
@@ -155,7 +167,17 @@ public class AutenticacionService implements AutenticacionServiceI {
         }
 
         Usuario usuario = token.getUsuario();
+        passwordPolicyService.validar(request.nuevaPassword(), usuario.getEmail(), usuario.getNombre());
+        if (!Boolean.TRUE.equals(usuario.getActivo())
+                || usuario.getEstado() == EstadoUsuario.INACTIVO
+                || usuario.getEstado() == EstadoUsuario.BLOQUEADO) {
+            throw new TokenRestablecimientoInvalidoException();
+        }
         usuario.setPassword(passwordEncoder.encode(request.nuevaPassword()));
+
+        if (usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION) {
+            usuario.setEstado(EstadoUsuario.ACTIVO);
+        }
         usuarioRepository.save(usuario);
         token.setUsadoEn(LocalDateTime.now());
         resetRepository.save(token);
@@ -185,14 +207,10 @@ public class AutenticacionService implements AutenticacionServiceI {
         LocalDateTime refreshExpira = ahora.plusDays(diasRefresh);
         sesionRepository.save(new SesionUsuario(usuario, hash(accessToken), hash(refreshToken),
                 accessExpira, refreshExpira, ahora));
+        boolean requiereCambio = usuario.getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION;
         return new LoginResponseDTO(accessToken, refreshToken, accessExpira, refreshExpira,
-                usuario.getRol(), panelDe(usuario.getRol()));
-    }
-
-    private void validarPassword(String password) {
-        if (password.length() < 8 || !password.matches("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!._-]).*$")) {
-            throw new PasswordDebilException("La contraseña debe tener al menos 8 caracteres, mayúscula, minúscula, número y carácter especial");
-        }
+                usuario.getRol(), requiereCambio ? "/panel/configuracion" : panelDe(usuario.getRol()),
+                usuario.getId(), requiereCambio);
     }
 
     private String panelDe(Rol rol) {

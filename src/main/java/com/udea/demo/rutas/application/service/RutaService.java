@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -40,9 +42,12 @@ public class RutaService implements RutaServiceI {
     }
 
     @Override @Transactional(readOnly = true)
-    public List<PedidoResponseDTO> listarEnviosPendientesDeAsignacion() {
-        List<Long> asignados = paradas.findPedidoIdsByEstado(EstadoParada.PENDIENTE);
-        return pedidos.listarEnTransito().stream().filter(p -> !asignados.contains(p.id())).toList();
+    public Page<PedidoResponseDTO> listarEnviosPendientesDeAsignacion(Pageable pageable) {
+        java.util.Set<Long> asignados = new java.util.HashSet<>(paradas.findPedidoIdsByEstado(EstadoParada.PENDIENTE));
+        Page<PedidoResponseDTO> pagina = pedidos.listarEnTransito(pageable);
+        List<PedidoResponseDTO> contenido = pagina.getContent().stream()
+                .filter(p -> !asignados.contains(p.id())).toList();
+        return new org.springframework.data.domain.PageImpl<>(contenido, pageable, pagina.getTotalElements());
     }
 
     @Override @Transactional(readOnly = true)

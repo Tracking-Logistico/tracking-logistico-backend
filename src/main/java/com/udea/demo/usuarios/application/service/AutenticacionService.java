@@ -196,10 +196,21 @@ public class AutenticacionService implements AutenticacionServiceI {
         LocalDateTime bloqueadoHasta = intentos >= MAX_INTENTOS
                 ? ahora.plusMinutes(minutosBloqueo) : null;
         intentoRepository.save(new IntentoInicioSesion(email, usuario, ahora, bloqueadoHasta));
-        log.warn("Intento de inicio de sesión fallido para {} desde {} ({})", email, ip, userAgent);
+        String safeEmail = sanitizarLog(email);
+        String safeIp = sanitizarLog(ip);
+        String safeUserAgent = sanitizarLog(userAgent);
+        log.warn("Intento de inicio de sesión fallido para {} desde {} ({})",
+                safeEmail, safeIp, safeUserAgent);
         if (bloqueadoHasta != null) {
             throw new CuentaBloqueadaLoginException(bloqueadoHasta);
         }
+    }
+
+    private String sanitizarLog(String entrada) {
+        if (entrada == null) {
+            return "N/A";
+        }
+        return entrada.replace('\n', '_').replace('\r', '_').trim();
     }
 
     private LoginResponseDTO crearSesion(Usuario usuario, LocalDateTime ahora) {

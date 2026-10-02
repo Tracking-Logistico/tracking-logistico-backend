@@ -1,5 +1,6 @@
 package com.udea.demo.usuarios.interfaces.persistence;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -14,4 +15,5 @@ public interface SesionUsuarioRepository extends JpaRepository<SesionUsuario, Lo
     @EntityGraph(attributePaths = "usuario")
     Optional<SesionUsuario> findByRefreshTokenHash(String refreshTokenHash);
     void deleteByUsuarioId(Long usuarioId);
+    long deleteByRefreshTokenExpiresAtBefore(LocalDateTime limite);
 }

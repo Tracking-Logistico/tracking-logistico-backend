@@ -11,4 +11,5 @@ public interface IntentoInicioSesionRepository extends JpaRepository<IntentoInic
     IntentoInicioSesion findFirstByEmailAndBloqueadoHastaAfterOrderByBloqueadoHastaDesc(
             String email, LocalDateTime ahora);
     void deleteByEmail(String email);
+    long deleteByIntentadoEnBefore(LocalDateTime limite);
 }

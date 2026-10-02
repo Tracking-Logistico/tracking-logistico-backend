@@ -4,6 +4,10 @@ import com.udea.demo.pedidos.application.dto.*;
 import com.udea.demo.pedidos.interfaces.services.PedidoServiceI;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -31,19 +35,19 @@ public class PedidoController {
     public ResponseEntity<List<PedidoResponseDTO>> listarMios() { return ResponseEntity.ok(pedidoService.listarMios()); }
 
     @GetMapping("/pendientes")
-    public ResponseEntity<List<PedidoResponseDTO>> listarPendientes() { return ResponseEntity.ok(pedidoService.listarPendientes()); }
+    public ResponseEntity<Page<PedidoResponseDTO>> listarPendientes(@PageableDefault(size = 20) Pageable pageable) { return ResponseEntity.ok(pedidoService.listarPendientes(limitar(pageable))); }
 
     @GetMapping("/transito")
-    public ResponseEntity<List<PedidoResponseDTO>> listarEnTransito() { return ResponseEntity.ok(pedidoService.listarEnTransito()); }
+    public ResponseEntity<Page<PedidoResponseDTO>> listarEnTransito(@PageableDefault(size = 20) Pageable pageable) { return ResponseEntity.ok(pedidoService.listarEnTransito(limitar(pageable))); }
 
     @GetMapping("/despachos")
     public ResponseEntity<List<PedidoResponseDTO>> listarDespachos() { return ResponseEntity.ok(pedidoService.listarDespachos()); }
 
     @GetMapping("/validados")
-    public ResponseEntity<List<PedidoResponseDTO>> listarValidados() { return ResponseEntity.ok(pedidoService.listarValidados()); }
+    public ResponseEntity<Page<PedidoResponseDTO>> listarValidados(@PageableDefault(size = 20) Pageable pageable) { return ResponseEntity.ok(pedidoService.listarValidados(limitar(pageable))); }
 
     @GetMapping("/activables")
-    public ResponseEntity<List<PedidoResponseDTO>> listarActivables() { return ResponseEntity.ok(pedidoService.listarActivables()); }
+    public ResponseEntity<Page<PedidoResponseDTO>> listarActivables(@PageableDefault(size = 20) Pageable pageable) { return ResponseEntity.ok(pedidoService.listarActivables(limitar(pageable))); }
 
     @GetMapping("/{id}")
     public ResponseEntity<PedidoResponseDTO> obtenerPedido(@PathVariable Long id) { return ResponseEntity.ok(pedidoService.obtener(id)); }
@@ -76,5 +80,9 @@ public class PedidoController {
     @PostMapping("/{id}/etiqueta")
     public ResponseEntity<EtiquetaEnvioResponseDTO> generarEtiqueta(@PathVariable Long id) {
         return ResponseEntity.ok(pedidoService.generarEtiqueta(id));
+    }
+    private Pageable limitar(Pageable pageable) {
+        int size = Math.min(Math.max(pageable.getPageSize(), 1), 50);
+        return PageRequest.of(pageable.getPageNumber(), size, pageable.getSort());
     }
 }

@@ -10,6 +10,8 @@ import com.udea.demo.pedidos.interfaces.persistence.PedidoRepository;
 import com.udea.demo.pedidos.interfaces.services.PedidoServiceI;
 import com.udea.demo.usuarios.application.service.ActorAuthorizationService;
 import com.udea.demo.usuarios.domain.model.Rol;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -83,23 +85,21 @@ public class PedidoService implements PedidoServiceI {
     }
 
     @Override @Transactional(readOnly = true)
-    public List<PedidoResponseDTO> listarPendientes() {
-        return pedidos.findByEstadoInOrderByFechaCreacionAsc(List.of(EstadoPedido.SOLICITADO, EstadoPedido.CORRECCION_SOLICITADA))
-                .stream().filter(p -> p.getEstado() == EstadoPedido.CORRECCION_SOLICITADA || p.getFechaValidacion() == null)
-                .map(this::map).toList();
+    public Page<PedidoResponseDTO> listarPendientes(Pageable pageable) {
+        return pedidos.findPendientes(EstadoPedido.SOLICITADO, EstadoPedido.CORRECCION_SOLICITADA, pageable)
+                .map(this::map);
     }
 
     @Override @Transactional(readOnly = true)
-    public List<PedidoResponseDTO> listarValidados() {
-        return pedidos.findByEstadoInOrderByFechaCreacionAsc(List.of(EstadoPedido.SOLICITADO)).stream()
-                .filter(p -> p.getFechaValidacion() != null).map(this::map).toList();
+    public Page<PedidoResponseDTO> listarValidados(Pageable pageable) {
+        return pedidos.findByEstadoAndFechaValidacionIsNotNullOrderByFechaCreacionAsc(
+                EstadoPedido.SOLICITADO, pageable).map(this::map);
     }
 
     @Override @Transactional(readOnly = true)
-    public List<PedidoResponseDTO> listarActivables() {
-        return pedidos.findByEstadoInOrderByFechaCreacionAsc(List.of(EstadoPedido.SOLICITADO, EstadoPedido.CREADO))
-                .stream().filter(p -> p.getEstado() == EstadoPedido.CREADO || p.getFechaValidacion() != null)
-                .map(this::map).toList();
+    public Page<PedidoResponseDTO> listarActivables(Pageable pageable) {
+        return pedidos.findActivables(EstadoPedido.SOLICITADO, EstadoPedido.CREADO, pageable)
+                .map(this::map);
     }
 
     @Override @Transactional(readOnly = true)
@@ -112,9 +112,10 @@ public class PedidoService implements PedidoServiceI {
     }
 
     @Override @Transactional(readOnly = true)
-    public List<PedidoResponseDTO> listarEnTransito() {
-        return pedidos.findByEstadoInOrderByFechaCreacionAsc(List.of(EstadoPedido.RECIBIDO_EN_ORIGEN, EstadoPedido.EN_TRANSITO))
-                .stream().map(this::map).toList();
+    public Page<PedidoResponseDTO> listarEnTransito(Pageable pageable) {
+        return pedidos.findByEstadoInOrderByFechaCreacionAsc(
+                List.of(EstadoPedido.RECIBIDO_EN_ORIGEN, EstadoPedido.EN_TRANSITO), pageable)
+                .map(this::map);
     }
 
     @Override @Transactional(readOnly = true)

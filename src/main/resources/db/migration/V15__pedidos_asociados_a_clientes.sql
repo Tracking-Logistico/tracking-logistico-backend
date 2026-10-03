@@ -7,4 +7,3 @@ SET fecha_estimada_entrega = fecha_creacion
 WHERE fecha_estimada_entrega IS NULL;
 
 CREATE INDEX idx_pedidos_destinatario_email ON pedidos(destinatario_email);
-CREATE INDEX idx_pedidos_cliente_fecha ON pedidos(id_cliente, fecha_creacion);

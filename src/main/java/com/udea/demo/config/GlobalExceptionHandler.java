@@ -62,12 +62,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> invalidBusinessInput(IllegalArgumentException ex) {
-        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage() == null ? "Solicitud inválida" : ex.getMessage()));
+        log.warn("Error de negocio o argumento no válido: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body(Map.of("error", "La solicitud contiene un valor no válido"));
     }
 
     @ExceptionHandler(com.udea.demo.pedidos.domain.exception.PedidoNoEncontradoException.class)
     public ResponseEntity<Map<String, String>> orderMissing(RuntimeException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "No se encontró el envío solicitado"));
     }
 
     @ExceptionHandler({com.udea.demo.pedidos.domain.exception.TransicionEstadoInvalidaException.class,

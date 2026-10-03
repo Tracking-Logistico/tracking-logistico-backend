@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: tracking_psep
       POSTGRES_USER: tracking_psep_user
-      POSTGRES_PASSWORD: T0Yq9eevXY4A6rWDOIV2MatsKadO9xs7
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     ports:
       - "5432:5432"
     volumes:
@@ -33,7 +33,7 @@ services:
       DB_PORT: 5432
       DB_NAME: tracking_psep
       DB_USER: tracking_psep_user
-      DB_PASSWORD: T0Yq9eevXY4A6rWDOIV2MatsKadO9xs7
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       CORS_ALLOWED_ORIGIN: http://localhost:5173
       APP_VERIFICATION_URL: http://localhost:5173/verificar
       AUTH_PASSWORD_RESET_URL: http://localhost:5173/restablecer-password

@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -21,11 +23,14 @@ public class SecurityConfig {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
     private final SesionAuthenticationFilter sesionAuthenticationFilter;
     private final DbaApiKeyAuthenticationFilter dbaApiKeyAuthenticationFilter;
+    private final Environment environment;
 
     public SecurityConfig(SesionAuthenticationFilter sesionAuthenticationFilter,
-                          DbaApiKeyAuthenticationFilter dbaApiKeyAuthenticationFilter) {
+                          DbaApiKeyAuthenticationFilter dbaApiKeyAuthenticationFilter,
+                          Environment environment) {
         this.sesionAuthenticationFilter = sesionAuthenticationFilter;
         this.dbaApiKeyAuthenticationFilter = dbaApiKeyAuthenticationFilter;
+        this.environment = environment;
     }
 
     @Bean
@@ -49,10 +54,14 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        boolean esDev = environment.acceptsProfiles(Profiles.of("dev", "local", "test", "h2"));
+
         http
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
-            .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
+            .headers(headers -> headers
+                .frameOptions(frameOptions -> frameOptions.sameOrigin())
+                .contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'self'")))
             .sessionManagement(session -> session.sessionCreationPolicy(
                     org.springframework.security.config.http.SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions
@@ -79,17 +88,20 @@ public class SecurityConfig {
                 }))
             .addFilterBefore(dbaApiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(sesionAuthenticationFilter, DbaApiKeyAuthenticationFilter.class)
-            .authorizeHttpRequests(auth -> auth
-                .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
-                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/error", "/api/v1/auth/login", "/api/v1/auth/refresh",
+            .authorizeHttpRequests(auth -> {
+                auth.dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll();
+                auth.requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll();
+                if (esDev) {
+                    auth.requestMatchers("/h2-console/**", "/swagger-ui/**",
+                            "/swagger-ui.html", "/v3/api-docs/**").permitAll();
+                }
+                auth.requestMatchers("/error", "/api/v1/auth/login", "/api/v1/auth/refresh",
                                  "/api/v1/auth/password/**", "/api/v1/clientes/registro",
-                                 "/api/v1/clientes/verificar", "/api/v1/clientes/verificacion/reenviar", "/h2-console/**",
-                                 "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                                 "/api/v1/clientes/verificar", "/api/v1/clientes/verificacion/reenviar").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("DBA")
                 .requestMatchers("/api/v1/auth/logout").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos").hasRole("CLIENTE")
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/mios").hasRole("CLIENTE")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/mios/**").hasRole("CLIENTE")
                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/pedidos/*/corregir").hasRole("CLIENTE")
                 .requestMatchers("/api/v1/pedidos/pendientes", "/api/v1/pedidos/activables",
                                  "/api/v1/pedidos/validados", "/api/v1/pedidos/transito", "/api/v1/pedidos/despachos",
@@ -114,8 +126,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/panel/cliente/**").hasRole("CLIENTE")
                 .requestMatchers("/api/v1/panel/operador/**").hasRole("OPERADOR")
                 .requestMatchers("/api/v1/panel/conductor/**").hasRole("CONDUCTOR")
-                .anyRequest().denyAll()
-            );
+                .anyRequest().denyAll();
+            });
         return http.build();
     }
 }

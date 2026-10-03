@@ -25,6 +25,7 @@ public class Pedido {
     @Version @Column(name = "version", nullable = false) private Long version = 0L;
     @Column(name = "destinatario_nombre", length = 120) private String destinatarioNombre;
     @Column(name = "destinatario_telefono", length = 20) private String destinatarioTelefono;
+    @Column(name = "destinatario_email", length = 255) private String destinatarioEmail;
     @Column(name = "peso_kg", nullable = false) private Double pesoKg;
     @Column(name = "largo_cm", nullable = false) private Double largoCm;
     @Column(name = "ancho_cm", nullable = false) private Double anchoCm;
@@ -37,6 +38,7 @@ public class Pedido {
     @Column(name = "justificacion_prioridad", length = 500) private String justificacionPrioridad;
     @Column(name = "id_operador_validador") private Long operadorValidadorId;
     @Column(name = "fecha_creacion", nullable = false) private LocalDateTime fechaCreacion;
+    @Column(name = "fecha_estimada_entrega") private LocalDateTime fechaEstimadaEntrega;
     @Column(name = "fecha_validacion") private LocalDateTime fechaValidacion;
     @Column(name = "numero_tracking", unique = true) private String numeroTracking;
     @Column(name = "fecha_activacion_tracking") private LocalDateTime fechaActivacionTracking;
@@ -49,15 +51,30 @@ public class Pedido {
                                  Double altoCm, TipoServicio tipoServicio, String numeroPedido, Prioridad prioridadSugerida,
                                  String destinatarioNombre, String destinatarioTelefono, String remitenteNombre,
                                  String remitenteEmail, String remitenteTelefono) {
+        return recibir(clienteId, direccionOrigen, ciudadOrigen, codigoPostalOrigen, direccionDestino, ciudadDestino,
+                codigoPostalDestino, descripcionPaquete, pesoKg, largoCm, anchoCm, altoCm, tipoServicio, numeroPedido,
+                prioridadSugerida, destinatarioNombre, destinatarioTelefono, remitenteNombre, remitenteEmail,
+                remitenteTelefono, null);
+    }
+
+    public static Pedido recibir(Long clienteId, String direccionOrigen, String ciudadOrigen, String codigoPostalOrigen,
+                                 String direccionDestino, String ciudadDestino, String codigoPostalDestino,
+                                 String descripcionPaquete, Double pesoKg, Double largoCm, Double anchoCm,
+                                 Double altoCm, TipoServicio tipoServicio, String numeroPedido, Prioridad prioridadSugerida,
+                                 String destinatarioNombre, String destinatarioTelefono, String remitenteNombre,
+                                 String remitenteEmail, String remitenteTelefono, String destinatarioEmail) {
+        LocalDateTime fechaCreacion = LocalDateTime.now();
         return Pedido.builder().numeroPedido(numeroPedido).clienteId(clienteId)
                 .direccionOrigen(direccionOrigen).ciudadOrigen(ciudadOrigen).codigoPostalOrigen(codigoPostalOrigen)
                 .direccionDestino(direccionDestino).ciudadDestino(ciudadDestino).codigoPostalDestino(codigoPostalDestino)
                 .descripcionPaquete(descripcionPaquete).destinatarioNombre(destinatarioNombre)
-                .destinatarioTelefono(destinatarioTelefono).remitenteNombre(remitenteNombre)
+                .destinatarioTelefono(destinatarioTelefono).destinatarioEmail(normalizarEmail(destinatarioEmail))
+                .remitenteNombre(remitenteNombre)
                 .remitenteEmail(remitenteEmail).remitenteTelefono(remitenteTelefono)
                 .pesoKg(pesoKg).largoCm(largoCm).anchoCm(anchoCm).altoCm(altoCm).tipoServicio(tipoServicio)
                 .prioridadSugerida(prioridadSugerida).estado(EstadoPedido.SOLICITADO)
-                .fechaCreacion(LocalDateTime.now()).build();
+                .fechaCreacion(fechaCreacion)
+                .fechaEstimadaEntrega(estimarEntrega(tipoServicio, fechaCreacion)).build();
     }
 
     public void corregir(String direccionOrigen, String ciudadOrigen, String codigoPostalOrigen,
@@ -65,6 +82,17 @@ public class Pedido {
                          String descripcionPaquete, Double pesoKg, Double largoCm, Double anchoCm,
                          Double altoCm, TipoServicio tipoServicio, String destinatarioNombre,
                          String destinatarioTelefono, String remitenteTelefono, Prioridad sugerida) {
+        corregir(direccionOrigen, ciudadOrigen, codigoPostalOrigen, direccionDestino, ciudadDestino,
+                codigoPostalDestino, descripcionPaquete, pesoKg, largoCm, anchoCm, altoCm, tipoServicio,
+                destinatarioNombre, destinatarioTelefono, remitenteTelefono, sugerida, destinatarioEmail);
+    }
+
+    public void corregir(String direccionOrigen, String ciudadOrigen, String codigoPostalOrigen,
+                         String direccionDestino, String ciudadDestino, String codigoPostalDestino,
+                         String descripcionPaquete, Double pesoKg, Double largoCm, Double anchoCm,
+                         Double altoCm, TipoServicio tipoServicio, String destinatarioNombre,
+                         String destinatarioTelefono, String remitenteTelefono, Prioridad sugerida,
+                         String destinatarioEmail) {
         if (estado != EstadoPedido.CORRECCION_SOLICITADA) throw new IllegalStateException("El pedido no tiene correcciones pendientes");
         this.direccionOrigen = direccionOrigen; this.ciudadOrigen = ciudadOrigen;
         this.codigoPostalOrigen = codigoPostalOrigen; this.direccionDestino = direccionDestino;
@@ -72,6 +100,10 @@ public class Pedido {
         this.descripcionPaquete = descripcionPaquete; this.pesoKg = pesoKg; this.largoCm = largoCm;
         this.anchoCm = anchoCm; this.altoCm = altoCm; this.tipoServicio = tipoServicio;
         this.destinatarioNombre = destinatarioNombre; this.destinatarioTelefono = destinatarioTelefono;
+        if (destinatarioEmail != null && !destinatarioEmail.isBlank()) {
+            this.destinatarioEmail = normalizarEmail(destinatarioEmail);
+        }
+        this.fechaEstimadaEntrega = estimarEntrega(tipoServicio, LocalDateTime.now());
         this.remitenteTelefono = remitenteTelefono;
         this.prioridadSugerida = sugerida; this.prioridadConfirmada = null;
         this.observacionesValidacion = null; this.justificacionPrioridad = null;
@@ -192,6 +224,7 @@ public class Pedido {
     public Long getVersion() { return version; }
     public String getDestinatarioNombre() { return destinatarioNombre; }
     public String getDestinatarioTelefono() { return destinatarioTelefono; }
+    public String getDestinatarioEmail() { return destinatarioEmail; }
     public Double getPesoKg() { return pesoKg; }
     public Double getLargoCm() { return largoCm; }
     public Double getAnchoCm() { return anchoCm; }
@@ -204,6 +237,7 @@ public class Pedido {
     public String getJustificacionPrioridad() { return justificacionPrioridad; }
     public Long getOperadorValidadorId() { return operadorValidadorId; }
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
+    public LocalDateTime getFechaEstimadaEntrega() { return fechaEstimadaEntrega; }
     public LocalDateTime getFechaValidacion() { return fechaValidacion; }
     public String getNumeroTracking() { return numeroTracking; }
     public LocalDateTime getFechaActivacionTracking() { return fechaActivacionTracking; }
@@ -229,6 +263,7 @@ public class Pedido {
         private boolean versionSet;
         private String destinatarioNombre;
         private String destinatarioTelefono;
+        private String destinatarioEmail;
         private Double pesoKg;
         private Double largoCm;
         private Double anchoCm;
@@ -241,6 +276,7 @@ public class Pedido {
         private String justificacionPrioridad;
         private Long operadorValidadorId;
         private LocalDateTime fechaCreacion;
+        private LocalDateTime fechaEstimadaEntrega;
         private LocalDateTime fechaValidacion;
         private String numeroTracking;
         private LocalDateTime fechaActivacionTracking;
@@ -264,6 +300,7 @@ public class Pedido {
         public PedidoBuilder version(Long version) { this.version = version; this.versionSet = true; return this; }
         public PedidoBuilder destinatarioNombre(String destinatarioNombre) { this.destinatarioNombre = destinatarioNombre; return this; }
         public PedidoBuilder destinatarioTelefono(String destinatarioTelefono) { this.destinatarioTelefono = destinatarioTelefono; return this; }
+        public PedidoBuilder destinatarioEmail(String destinatarioEmail) { this.destinatarioEmail = destinatarioEmail; return this; }
         public PedidoBuilder pesoKg(Double pesoKg) { this.pesoKg = pesoKg; return this; }
         public PedidoBuilder largoCm(Double largoCm) { this.largoCm = largoCm; return this; }
         public PedidoBuilder anchoCm(Double anchoCm) { this.anchoCm = anchoCm; return this; }
@@ -276,6 +313,7 @@ public class Pedido {
         public PedidoBuilder justificacionPrioridad(String justificacionPrioridad) { this.justificacionPrioridad = justificacionPrioridad; return this; }
         public PedidoBuilder operadorValidadorId(Long operadorValidadorId) { this.operadorValidadorId = operadorValidadorId; return this; }
         public PedidoBuilder fechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; return this; }
+        public PedidoBuilder fechaEstimadaEntrega(LocalDateTime fechaEstimadaEntrega) { this.fechaEstimadaEntrega = fechaEstimadaEntrega; return this; }
         public PedidoBuilder fechaValidacion(LocalDateTime fechaValidacion) { this.fechaValidacion = fechaValidacion; return this; }
         public PedidoBuilder numeroTracking(String numeroTracking) { this.numeroTracking = numeroTracking; return this; }
         public PedidoBuilder fechaActivacionTracking(LocalDateTime fechaActivacionTracking) { this.fechaActivacionTracking = fechaActivacionTracking; return this; }
@@ -284,7 +322,18 @@ public class Pedido {
         public Pedido build() {
             Long versionValue = versionSet ? version : 0L;
             Boolean etiquetaImpresaValue = etiquetaImpresaSet ? etiquetaImpresa : false;
-            return new Pedido(id, numeroPedido, clienteId, direccionOrigen, direccionDestino, descripcionPaquete, ciudadOrigen, codigoPostalOrigen, ciudadDestino, codigoPostalDestino, remitenteNombre, remitenteEmail, remitenteTelefono, versionValue, destinatarioNombre, destinatarioTelefono, pesoKg, largoCm, anchoCm, altoCm, tipoServicio, prioridadSugerida, prioridadConfirmada, estado, observacionesValidacion, justificacionPrioridad, operadorValidadorId, fechaCreacion, fechaValidacion, numeroTracking, fechaActivacionTracking, etiquetaImpresaValue, fechaImpresionEtiqueta);
+            Pedido pedido = new Pedido(id, numeroPedido, clienteId, direccionOrigen, direccionDestino, descripcionPaquete, ciudadOrigen, codigoPostalOrigen, ciudadDestino, codigoPostalDestino, remitenteNombre, remitenteEmail, remitenteTelefono, versionValue, destinatarioNombre, destinatarioTelefono, pesoKg, largoCm, anchoCm, altoCm, tipoServicio, prioridadSugerida, prioridadConfirmada, estado, observacionesValidacion, justificacionPrioridad, operadorValidadorId, fechaCreacion, fechaValidacion, numeroTracking, fechaActivacionTracking, etiquetaImpresaValue, fechaImpresionEtiqueta);
+            pedido.destinatarioEmail = destinatarioEmail;
+            pedido.fechaEstimadaEntrega = fechaEstimadaEntrega;
+            return pedido;
         }
+    }
+
+    private static String normalizarEmail(String email) {
+        return email == null || email.isBlank() ? null : email.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static LocalDateTime estimarEntrega(TipoServicio tipoServicio, LocalDateTime desde) {
+        return desde.plusDays(tipoServicio == TipoServicio.EXPRESS ? 1 : 3);
     }
 }

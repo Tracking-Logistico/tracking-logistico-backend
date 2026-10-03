@@ -10,8 +10,8 @@ public interface ClienteServiceI {
     ClienteResponseDTO obtenerPerfilActual();
     UsuarioResponseDTO actualizarPerfilActual(ActualizarPerfilRequestDTO dto);
     void desactivarCuentaActual();
-    UsuarioResponseDTO actualizarPerfil(Long id, ActualizarPerfilRequestDTO dto);
-    void desactivarCuentaCliente(Long id);
+    UsuarioResponseDTO actualizarPerfil(Long id, ActualizarPerfilRequestDTO dto, String usuarioAutenticadoEmail);
+    void desactivarCuentaCliente(Long id, String usuarioAutenticadoEmail);
     void verificarCuenta(String token);
     void reenviarVerificacion(String email);
 }

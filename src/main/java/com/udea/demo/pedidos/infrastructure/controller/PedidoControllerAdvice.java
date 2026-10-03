@@ -20,7 +20,7 @@ public class PedidoControllerAdvice {
     @ExceptionHandler(PedidoNoEncontradoException.class)
     public ResponseEntity<Map<String, String>> manejarPedidoNoEncontrado(PedidoNoEncontradoException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(Map.of("error", ex.getMessage()));
+                .body(Map.of("error", "No se encontró el envío solicitado"));
     }
 
     @ExceptionHandler(TransicionEstadoInvalidaException.class)

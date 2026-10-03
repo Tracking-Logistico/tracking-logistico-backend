@@ -12,6 +12,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 @Repository
 public interface PedidoRepository extends JpaRepository<Pedido, Long> {
@@ -41,7 +42,23 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     Page<Pedido> findActivables(@Param("solicitado") EstadoPedido solicitado,
                                 @Param("creado") EstadoPedido creado,
                                 Pageable pageable);
-    List<Pedido> findByClienteIdOrderByFechaCreacionDesc(Long clienteId);
+    @Query("""
+        select p from Pedido p
+        where (p.clienteId = :clienteId
+            or lower(p.remitenteEmail) = lower(:email)
+            or (lower(p.destinatarioEmail) = lower(:email)
+                and p.estado not in :estadosNoAsociados))
+          and (:estado is null or p.estado = :estado)
+          and (:fechaDesde is null or p.fechaCreacion >= :fechaDesde)
+          and (:fechaHasta is null or p.fechaCreacion < :fechaHasta)
+        """)
+    Page<Pedido> findPedidosDeCliente(@Param("clienteId") Long clienteId,
+                                     @Param("email") String email,
+                                     @Param("estadosNoAsociados") List<EstadoPedido> estadosNoAsociados,
+                                     @Param("estado") EstadoPedido estado,
+                                     @Param("fechaDesde") LocalDateTime fechaDesde,
+                                     @Param("fechaHasta") LocalDateTime fechaHasta,
+                                     Pageable pageable);
     Optional<Pedido> findByNumeroTracking(String numeroTracking);
     boolean existsByNumeroTracking(String numeroTracking);
     boolean existsByNumeroPedido(String numeroPedido);

@@ -19,6 +19,17 @@ public record RecibirPedidoRequestDTO(
     @NotBlank(message = "El nombre del destinatario es obligatorio") @Size(max = 120) String destinatarioNombre,
     @NotBlank(message = "El teléfono del destinatario es obligatorio")
     @Pattern(regexp = "^\\+?[1-9][0-9]{7,14}$", message = "El teléfono del destinatario no tiene un formato válido") String destinatarioTelefono,
+    @jakarta.validation.constraints.Email(message = "El email del destinatario no es válido")
+    @Size(max = 255) String destinatarioEmail,
     @NotBlank(message = "El teléfono del remitente es obligatorio")
     @Pattern(regexp = "^\\+?[1-9][0-9]{7,14}$", message = "El teléfono del remitente no tiene un formato válido") String remitenteTelefono
-) {}
+) {
+    public RecibirPedidoRequestDTO(String direccionOrigen, String ciudadOrigen, String codigoPostalOrigen,
+            String direccionDestino, String ciudadDestino, String codigoPostalDestino, String descripcionPaquete,
+            Double pesoKg, Double largoCm, Double anchoCm, Double altoCm, TipoServicio tipoServicio,
+            String destinatarioNombre, String destinatarioTelefono, String remitenteTelefono) {
+        this(direccionOrigen, ciudadOrigen, codigoPostalOrigen, direccionDestino, ciudadDestino, codigoPostalDestino,
+                descripcionPaquete, pesoKg, largoCm, anchoCm, altoCm, tipoServicio, destinatarioNombre,
+                destinatarioTelefono, null, remitenteTelefono);
+    }
+}

@@ -35,7 +35,8 @@ public record PedidoResponseDTO(
     String codigoPostalDestino,
     String remitenteNombre,
     String remitenteEmail,
-    String remitenteTelefono
+    String remitenteTelefono,
+    LocalDateTime fechaEstimadaEntrega
 ) {
     public PedidoResponseDTO(Long id, String numeroPedido, Long clienteId, String direccionOrigen,
             String direccionDestino, String descripcionPaquete, Double pesoKg, Double largoCm, Double anchoCm,
@@ -47,6 +48,6 @@ public record PedidoResponseDTO(
                 altoCm, tipoServicio, prioridadSugerida, prioridadConfirmada, estado, observacionesValidacion,
                 operadorValidadorId, fechaCreacion, fechaValidacion, numeroTracking, fechaActivacionTracking,
                 etiquetaImpresa, fechaImpresionEtiqueta, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
     }
 }

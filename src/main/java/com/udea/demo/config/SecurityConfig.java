@@ -101,7 +101,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/admin/**").hasRole("DBA")
                 .requestMatchers("/api/v1/auth/logout").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos").hasRole("CLIENTE")
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/mios").hasRole("CLIENTE")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/mios/**").hasRole("CLIENTE")
                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/pedidos/*/corregir").hasRole("CLIENTE")
                 .requestMatchers("/api/v1/pedidos/pendientes", "/api/v1/pedidos/activables",
                                  "/api/v1/pedidos/validados", "/api/v1/pedidos/transito", "/api/v1/pedidos/despachos",

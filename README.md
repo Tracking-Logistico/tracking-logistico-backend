@@ -58,3 +58,9 @@ El CLI muestra una sola vez la contraseña temporal. Los endpoints administrativ
 ```
 
 Las pruebas utilizan `application-test.properties` con H2 y Hibernate `create-drop`. El esquema de pruebas crea las tablas JDBC auxiliares mediante `src/test/resources/import.sql`. Las migraciones PostgreSQL de Flyway no se modifican ni se ejecutan sobre H2. Para comprobar el comportamiento real en PostgreSQL, levanta Docker y prueba los endpoints y los flujos completos.
+
+## Pedidos asociados a una cuenta
+
+`GET /api/v1/pedidos/mios` requiere una sesión de cliente y devuelve una página de hasta 20 pedidos por defecto. Admite `page`, `size` (máximo 50), `sort=fechaCreacion,desc` o `sort=estado,asc`, además de los filtros opcionales `estado`, `fechaDesde=YYYY-MM-DD` y `fechaHasta=YYYY-MM-DD` (fechas de creación, ambas inclusive). La respuesta incluye número de pedido, tracking, remitente, destinatario, estado y fechas estimada y de creación. Un resultado vacío se representa con una página vacía para que el cliente muestre su estado vacío.
+
+Los pedidos se asocian al remitente autenticado al crearlos. Para que un destinatario con cuenta también los vea, se puede enviar `destinatarioEmail` al crear el pedido; el destinatario solo verá el pedido después de que el operador lo pase a `CREADO`. La fecha estimada se calcula al crear o corregir el pedido: 1 día calendario para `EXPRESS` y 3 para `ESTANDAR` y `PROGRAMADO`. `GET /api/v1/pedidos/mios/tracking/{numeroTracking}` devuelve para un envío de la cuenta el estado actual y sus movimientos logísticos, sin exponer datos de contacto o dirección del otro participante. El remitente también conserva los endpoints existentes `GET /api/v1/pedidos/tracking/{numeroTracking}` y `GET /api/v1/pedidos/{id}/historial`.

@@ -10,6 +10,6 @@ public interface UsuarioInternoServiceI {
 
     void desactivar(Long id);
 
-    void cambiarPassword(Long id, String passwordActual,
+    void cambiarPassword(Long id, String usuarioAutenticadoEmail, String passwordActual,
                          String nuevaPassword, String confirmarPassword);
 }

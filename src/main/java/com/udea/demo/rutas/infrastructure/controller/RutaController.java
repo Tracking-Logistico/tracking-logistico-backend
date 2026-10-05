@@ -15,6 +15,9 @@ import com.udea.demo.usuarios.application.service.ActorAuthorizationService;
 
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -37,8 +40,8 @@ public class RutaController {
     }
 
     @GetMapping("/envios-pendientes")
-    public ResponseEntity<List<PedidoResponseDTO>> listarEnviosPendientes() {
-        return ResponseEntity.ok(rutaService.listarEnviosPendientesDeAsignacion());
+    public ResponseEntity<Page<PedidoResponseDTO>> listarEnviosPendientes(@PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(rutaService.listarEnviosPendientesDeAsignacion(pageable));
     }
 
     @GetMapping("/conductores-disponibles")

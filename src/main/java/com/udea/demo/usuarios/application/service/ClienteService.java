@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import com.udea.demo.usuarios.interfaces.services.EmailServiceI;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -92,7 +93,7 @@ public class ClienteService implements ClienteServiceI {
 
         String tokenUUID = UUID.randomUUID().toString();
         TokenVerificacion tokenVerificacion = TokenVerificacion.builder()
-                .token(tokenUUID)
+                .token(AutenticacionService.hash(tokenUUID))
                 .usuario(guardado)
                 .fechaExpiracion(LocalDateTime.now().plusHours(2))
                 .build();
@@ -116,7 +117,7 @@ public class ClienteService implements ClienteServiceI {
                     .isAfter(LocalDateTime.now().minusMinutes(1))) return;
             TokenVerificacion verificacion = anterior.orElseGet(() -> TokenVerificacion.builder().usuario(usuario).build());
             String token = UUID.randomUUID().toString();
-            verificacion.setToken(token);
+            verificacion.setToken(AutenticacionService.hash(token));
             verificacion.setFechaExpiracion(LocalDateTime.now().plusHours(2));
             tokenRepository.save(verificacion);
             emailService.enviarVerificacion(usuario.getEmail(), usuario.getNombre(),
@@ -127,7 +128,7 @@ public class ClienteService implements ClienteServiceI {
     @Override
     @Transactional
     public void verificarCuenta(String token) {
-        TokenVerificacion tokenVerificacion = tokenRepository.findByToken(token)
+        TokenVerificacion tokenVerificacion = tokenRepository.findByToken(AutenticacionService.hash(token))
                 .orElseThrow(() -> new IllegalArgumentException("Token de verificación inválido"));
 
         if (tokenVerificacion.estaExpirado()) {
@@ -174,9 +175,11 @@ public class ClienteService implements ClienteServiceI {
 
     @Override
     @Transactional
-    public UsuarioResponseDTO actualizarPerfil(Long id, ActualizarPerfilRequestDTO dto) {
+    public UsuarioResponseDTO actualizarPerfil(Long id, ActualizarPerfilRequestDTO dto,
+                                                String usuarioAutenticadoEmail) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
+        validarPropietario(usuario, usuarioAutenticadoEmail);
 
         actorAuthorizationService.exigirPropietario(usuario.getId(), Rol.CLIENTE);
         return actualizarUsuario(usuario, dto);
@@ -184,13 +187,20 @@ public class ClienteService implements ClienteServiceI {
 
     @Override
     @Transactional
-    public void desactivarCuentaCliente(Long id) {
+    public void desactivarCuentaCliente(Long id, String usuarioAutenticadoEmail) {
         Usuario u = usuarioRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
+            .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
+        validarPropietario(u, usuarioAutenticadoEmail);
         actorAuthorizationService.exigirPropietario(u.getId(), Rol.CLIENTE);
         u.setActivo(false);
         u.setEstado(EstadoUsuario.INACTIVO);
         usuarioRepository.save(u);
+    }
+
+    private void validarPropietario(Usuario usuario, String usuarioAutenticadoEmail) {
+        if (!usuario.getEmail().equalsIgnoreCase(usuarioAutenticadoEmail)) {
+            throw new AccessDeniedException("No tiene autorización para modificar este recurso.");
+        }
     }
 
     private UsuarioResponseDTO actualizarUsuario(Usuario usuario, ActualizarPerfilRequestDTO dto) {

@@ -10,6 +10,8 @@ import com.udea.demo.pedidos.interfaces.persistence.PedidoRepository;
 import com.udea.demo.pedidos.interfaces.services.PedidoServiceI;
 import com.udea.demo.usuarios.application.service.ActorAuthorizationService;
 import com.udea.demo.usuarios.domain.model.Rol;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,7 +58,7 @@ public class PedidoService implements PedidoServiceI {
                 dto.direccionDestino(), dto.ciudadDestino(), dto.codigoPostalDestino(),
                 dto.descripcionPaquete(), dto.pesoKg(), dto.largoCm(), dto.anchoCm(), dto.altoCm(),
                 dto.tipoServicio(), generarNumeroPedidoUnico(), sugerida, dto.destinatarioNombre(), dto.destinatarioTelefono(),
-                remitente.getNombre(), remitente.getEmail(), dto.remitenteTelefono());
+                remitente.getNombre(), remitente.getEmail(), dto.remitenteTelefono(), dto.destinatarioEmail());
         Pedido guardado = pedidos.save(pedido);
         evento(guardado.getId(), actores.actorActual().getId(), "PEDIDO_SOLICITADO", null,
                 "Pedido creado por el cliente");
@@ -72,34 +74,38 @@ public class PedidoService implements PedidoServiceI {
         p.corregir(dto.direccionOrigen(), dto.ciudadOrigen(), dto.codigoPostalOrigen(), dto.direccionDestino(),
                 dto.ciudadDestino(), dto.codigoPostalDestino(), dto.descripcionPaquete(), dto.pesoKg(), dto.largoCm(),
                 dto.anchoCm(), dto.altoCm(), dto.tipoServicio(), dto.destinatarioNombre(), dto.destinatarioTelefono(),
-                dto.remitenteTelefono(), sugerida);
+                dto.remitenteTelefono(), sugerida, dto.destinatarioEmail());
         evento(id, actores.actorActual().getId(), "PEDIDO_CORREGIDO", null, "El cliente actualizó la información observada");
         return map(pedidos.save(p));
     }
 
     @Override @Transactional(readOnly = true)
-    public List<PedidoResponseDTO> listarMios() {
-        return pedidos.findByClienteIdOrderByFechaCreacionDesc(actores.clienteActualId()).stream().map(this::map).toList();
+    public Page<PedidoClienteResponseDTO> listarMios(EstadoPedido estado, LocalDateTime fechaDesde,
+                                                      LocalDateTime fechaHasta, Pageable pageable) {
+        var actor = actores.actorActual();
+        List<EstadoPedido> estadosNoAsociados = List.of(
+                EstadoPedido.SOLICITADO, EstadoPedido.CORRECCION_SOLICITADA, EstadoPedido.RECHAZADO);
+        return pedidos.findPedidosDeCliente(actores.clienteActualId(), actor.getEmail(),
+                        estadosNoAsociados, estado, fechaDesde, fechaHasta, pageable)
+                .map(this::mapCliente);
     }
 
     @Override @Transactional(readOnly = true)
-    public List<PedidoResponseDTO> listarPendientes() {
-        return pedidos.findByEstadoInOrderByFechaCreacionAsc(List.of(EstadoPedido.SOLICITADO, EstadoPedido.CORRECCION_SOLICITADA))
-                .stream().filter(p -> p.getEstado() == EstadoPedido.CORRECCION_SOLICITADA || p.getFechaValidacion() == null)
-                .map(this::map).toList();
+    public Page<PedidoResponseDTO> listarPendientes(Pageable pageable) {
+        return pedidos.findPendientes(EstadoPedido.SOLICITADO, EstadoPedido.CORRECCION_SOLICITADA, pageable)
+                .map(this::map);
     }
 
     @Override @Transactional(readOnly = true)
-    public List<PedidoResponseDTO> listarValidados() {
-        return pedidos.findByEstadoInOrderByFechaCreacionAsc(List.of(EstadoPedido.SOLICITADO)).stream()
-                .filter(p -> p.getFechaValidacion() != null).map(this::map).toList();
+    public Page<PedidoResponseDTO> listarValidados(Pageable pageable) {
+        return pedidos.findByEstadoAndFechaValidacionIsNotNullOrderByFechaCreacionAsc(
+                EstadoPedido.SOLICITADO, pageable).map(this::map);
     }
 
     @Override @Transactional(readOnly = true)
-    public List<PedidoResponseDTO> listarActivables() {
-        return pedidos.findByEstadoInOrderByFechaCreacionAsc(List.of(EstadoPedido.SOLICITADO, EstadoPedido.CREADO))
-                .stream().filter(p -> p.getEstado() == EstadoPedido.CREADO || p.getFechaValidacion() != null)
-                .map(this::map).toList();
+    public Page<PedidoResponseDTO> listarActivables(Pageable pageable) {
+        return pedidos.findActivables(EstadoPedido.SOLICITADO, EstadoPedido.CREADO, pageable)
+                .map(this::map);
     }
 
     @Override @Transactional(readOnly = true)
@@ -112,9 +118,10 @@ public class PedidoService implements PedidoServiceI {
     }
 
     @Override @Transactional(readOnly = true)
-    public List<PedidoResponseDTO> listarEnTransito() {
-        return pedidos.findByEstadoInOrderByFechaCreacionAsc(List.of(EstadoPedido.RECIBIDO_EN_ORIGEN, EstadoPedido.EN_TRANSITO))
-                .stream().map(this::map).toList();
+    public Page<PedidoResponseDTO> listarEnTransito(Pageable pageable) {
+        return pedidos.findByEstadoInOrderByFechaCreacionAsc(
+                List.of(EstadoPedido.RECIBIDO_EN_ORIGEN, EstadoPedido.EN_TRANSITO), pageable)
+                .map(this::map);
     }
 
     @Override @Transactional(readOnly = true)
@@ -126,6 +133,35 @@ public class PedidoService implements PedidoServiceI {
     public PedidoResponseDTO obtenerPorTracking(String numeroTracking) {
         Pedido p = pedidos.findByNumeroTracking(numeroTracking).orElseThrow(() -> new PedidoNoEncontradoException(numeroTracking));
         autorizarLectura(p); return map(p);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public SeguimientoClienteResponseDTO obtenerSeguimientoCliente(String numeroTracking) {
+        Pedido p = pedidos.findByNumeroTracking(numeroTracking)
+                .orElseThrow(() -> new PedidoNoEncontradoException(numeroTracking));
+        var actor = actores.actorActual();
+        if (actor.getRol() != Rol.CLIENTE) {
+            throw new AccessDeniedException("El seguimiento de cuenta solo está disponible para clientes");
+        }
+        boolean remitente = p.getClienteId().equals(actores.clienteActualId());
+        boolean destinatario = p.getDestinatarioEmail() != null
+                && p.getDestinatarioEmail().equalsIgnoreCase(actor.getEmail())
+                && !List.of(EstadoPedido.SOLICITADO, EstadoPedido.CORRECCION_SOLICITADA, EstadoPedido.RECHAZADO)
+                .contains(p.getEstado());
+        if (!remitente && !destinatario) {
+            throw new AccessDeniedException("El pedido no está asociado al cliente autenticado");
+        }
+        List<MovimientoSeguimientoResponseDTO> movimientos = historial
+                .findByPedidoIdOrderByFechaAsc(p.getId()).stream()
+                .filter(h -> "TRACKING_ACTIVADO".equals(h.getTipoEvento())
+                        || "ESTADO_LOGISTICO".equals(h.getTipoEvento()))
+                .map(h -> new MovimientoSeguimientoResponseDTO(
+                        "TRACKING_ACTIVADO".equals(h.getTipoEvento())
+                                ? EstadoPedido.CREADO : EstadoPedido.valueOf(h.getDetalle()),
+                        h.getFecha()))
+                .toList();
+        return new SeguimientoClienteResponseDTO(p.getId(), p.getNumeroPedido(), p.getNumeroTracking(),
+                p.getEstado(), p.getFechaEstimadaEntrega(), movimientos);
     }
 
     @Override @Transactional
@@ -229,6 +265,16 @@ public class PedidoService implements PedidoServiceI {
                 p.getNumeroTracking(), p.getFechaActivacionTracking(), p.getEtiquetaImpresa(), p.getFechaImpresionEtiqueta(),
                 p.getDestinatarioNombre(), p.getDestinatarioTelefono(), p.getJustificacionPrioridad(),
                 p.getCiudadOrigen(), p.getCiudadDestino(), p.getCodigoPostalOrigen(), p.getCodigoPostalDestino(),
-                p.getRemitenteNombre(), p.getRemitenteEmail(), p.getRemitenteTelefono());
+                p.getRemitenteNombre(), p.getRemitenteEmail(), p.getRemitenteTelefono(), p.getFechaEstimadaEntrega());
+    }
+
+    private PedidoClienteResponseDTO mapCliente(Pedido p) {
+        LocalDateTime fechaEstimada = p.getFechaEstimadaEntrega();
+        if (fechaEstimada == null && p.getFechaCreacion() != null) {
+            fechaEstimada = p.getFechaCreacion().plusDays(p.getTipoServicio() == TipoServicio.EXPRESS ? 1 : 3);
+        }
+        return new PedidoClienteResponseDTO(p.getId(), p.getNumeroPedido(), p.getNumeroTracking(),
+                p.getRemitenteNombre(), p.getDestinatarioNombre(), p.getEstado(),
+                p.getFechaCreacion(), fechaEstimada);
     }
 }

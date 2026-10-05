@@ -1,6 +1,7 @@
 package com.udea.demo.config;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,6 +24,8 @@ import com.udea.demo.usuarios.interfaces.persistence.SesionUsuarioRepository;
 
 @Component
 public class SesionAuthenticationFilter extends OncePerRequestFilter {
+    private static final long UMBRAL_ACTUALIZACION_ACTIVIDAD_SEGUNDOS = 60;
+
     private final SesionUsuarioRepository sesionRepository;
     @Value("${app.auth.client-inactivity-minutes:30}")
     private long minutosInactividadCliente;
@@ -57,14 +60,16 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
                             || (rol == Rol.CLIENTE
                                 && sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_VERIFICACION));
                 if (vigente) {
-                    sesion.setLastActivityAt(ahora);
-
-                    LocalDateTime limite = ahora.plusMinutes(minutosInactividad);
-                    if (limite.isAfter(sesion.getRefreshTokenExpiresAt())) {
-                        limite = sesion.getRefreshTokenExpiresAt();
+                    if (Duration.between(sesion.getLastActivityAt(), ahora).getSeconds()
+                            > UMBRAL_ACTUALIZACION_ACTIVIDAD_SEGUNDOS) {
+                        sesion.setLastActivityAt(ahora);
+                        LocalDateTime limite = ahora.plusMinutes(minutosInactividad);
+                        if (limite.isAfter(sesion.getRefreshTokenExpiresAt())) {
+                            limite = sesion.getRefreshTokenExpiresAt();
+                        }
+                        sesion.setAccessTokenExpiresAt(limite);
+                        sesionRepository.save(sesion);
                     }
-                    sesion.setAccessTokenExpiresAt(limite);
-                    sesionRepository.save(sesion);
                     String authority = sesion.getUsuario().getEstado() == EstadoUsuario.PENDIENTE_ACTIVACION
                             ? "ROLE_PASSWORD_CHANGE" : "ROLE_" + rol.name();
                     var auth = new UsernamePasswordAuthenticationToken(

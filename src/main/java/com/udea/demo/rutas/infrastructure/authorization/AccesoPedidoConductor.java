@@ -10,4 +10,7 @@ public class AccesoPedidoConductor implements AccesoPedidoConductorI {
     @Override public boolean tieneAsignacionActiva(Long pedidoId, Long usuarioId) {
         return paradas.existsByPedidoIdAndRutaConductorUsuarioIdAndEstado(pedidoId, usuarioId, EstadoParada.PENDIENTE);
     }
+    @Override public boolean fueAsignado(Long pedidoId, Long usuarioId) {
+        return paradas.existsByPedidoIdAndRutaConductorUsuarioId(pedidoId, usuarioId);
+    }
 }

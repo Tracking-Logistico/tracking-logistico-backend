@@ -424,9 +424,12 @@ class UsuarioInternoServiceTest {
     @DisplayName("cambiarPassword")
     class CambiarPassword {
 
+        private static final String EMAIL_ACTOR = "operador@tracking.com";
+
         private Usuario pendienteActivacion() {
             return Usuario.builder()
                     .id(20L)
+                    .email(EMAIL_ACTOR)
                     .password(HASH)
                     .activo(true)
                     .estado(EstadoUsuario.PENDIENTE_ACTIVACION)
@@ -444,7 +447,7 @@ class UsuarioInternoServiceTest {
             when(passwordEncoder.matches("NuevaClave1!", HASH)).thenReturn(false);
             when(passwordEncoder.encode("NuevaClave1!")).thenReturn("$2a$10$nueva");
 
-            usuarioInternoService.cambiarPassword(20L, TEMPORAL, "NuevaClave1!", "NuevaClave1!");
+            usuarioInternoService.cambiarPassword(20L, EMAIL_ACTOR, TEMPORAL, "NuevaClave1!", "NuevaClave1!");
 
             assertThat(usuario.getEstado()).isEqualTo(EstadoUsuario.ACTIVO);
             assertThat(usuario.getPassword()).isEqualTo("$2a$10$nueva");
@@ -454,10 +457,11 @@ class UsuarioInternoServiceTest {
         @Test
         @DisplayName("Confirmación no coincidente lanza PasswordNoCoincideException")
         void confirmacionNoCoincide() {
+            when(usuarioRepository.findById(20L)).thenReturn(Optional.of(pendienteActivacion()));
             assertThatThrownBy(() -> usuarioInternoService.cambiarPassword(
-                    20L, TEMPORAL, "NuevaClave1!", "OtraClave1!"))
+                    20L, EMAIL_ACTOR, TEMPORAL, "NuevaClave1!", "OtraClave1!"))
                     .isInstanceOf(PasswordNoCoincideException.class);
-            verify(usuarioRepository, never()).findById(any());
+            verify(usuarioRepository, never()).save(any());
         }
 
         @Test
@@ -468,7 +472,7 @@ class UsuarioInternoServiceTest {
             when(usuarioRepository.findById(20L)).thenReturn(Optional.of(usuario));
 
             assertThatThrownBy(() -> usuarioInternoService.cambiarPassword(
-                    20L, TEMPORAL, "NuevaClave1!", "NuevaClave1!"))
+                    20L, EMAIL_ACTOR, TEMPORAL, "NuevaClave1!", "NuevaClave1!"))
                     .isInstanceOf(CuentaInactivaException.class);
         }
 
@@ -479,7 +483,7 @@ class UsuarioInternoServiceTest {
             when(passwordEncoder.matches("mala", HASH)).thenReturn(false);
 
             assertThatThrownBy(() -> usuarioInternoService.cambiarPassword(
-                    20L, "mala", "NuevaClave1!", "NuevaClave1!"))
+                    20L, EMAIL_ACTOR, "mala", "NuevaClave1!", "NuevaClave1!"))
                     .isInstanceOf(PasswordDebilException.class)
                     .hasMessage("La contraseña actual no es correcta");
         }
@@ -491,7 +495,7 @@ class UsuarioInternoServiceTest {
             when(passwordEncoder.matches(TEMPORAL, HASH)).thenReturn(true);
 
             assertThatThrownBy(() -> usuarioInternoService.cambiarPassword(
-                    20L, TEMPORAL, TEMPORAL, TEMPORAL))
+                    20L, EMAIL_ACTOR, TEMPORAL, TEMPORAL, TEMPORAL))
                     .isInstanceOf(PasswordDebilException.class)
                     .hasMessage("La nueva contraseña no puede ser igual a la anterior");
         }
@@ -506,7 +510,7 @@ class UsuarioInternoServiceTest {
             when(passwordEncoder.matches("NuevaClave1!", HASH)).thenReturn(false);
             when(passwordEncoder.encode("NuevaClave1!")).thenReturn("$2a$10$otra");
 
-            usuarioInternoService.cambiarPassword(20L, "Actual1!", "NuevaClave1!", "NuevaClave1!");
+            usuarioInternoService.cambiarPassword(20L, EMAIL_ACTOR, "Actual1!", "NuevaClave1!", "NuevaClave1!");
 
             assertThat(usuario.getEstado()).isEqualTo(EstadoUsuario.ACTIVO);
             verify(usuarioRepository).save(usuario);
@@ -518,7 +522,7 @@ class UsuarioInternoServiceTest {
             when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> usuarioInternoService.cambiarPassword(
-                    99L, "a", "NuevaClave1!", "NuevaClave1!"))
+                    99L, EMAIL_ACTOR, "a", "NuevaClave1!", "NuevaClave1!"))
                     .isInstanceOf(UsuarioNoEncontradoException.class);
         }
     }

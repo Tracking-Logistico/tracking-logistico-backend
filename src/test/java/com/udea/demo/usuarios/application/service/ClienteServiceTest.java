@@ -29,6 +29,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -118,26 +119,31 @@ class ClienteServiceTest {
             ArgumentCaptor<TokenVerificacion> tokenCaptor = ArgumentCaptor.forClass(TokenVerificacion.class);
             verify(tokenRepository).save(tokenCaptor.capture());
             TokenVerificacion token = tokenCaptor.getValue();
-            assertThat(token.getToken()).isNotBlank();
-            assertThat(UUID.fromString(token.getToken())).isNotNull();
+            // Se persiste solo el hash; el token en claro viaja únicamente en el enlace del correo.
+            ArgumentCaptor<String> enlace = ArgumentCaptor.forClass(String.class);
+            verify(emailService).enviarVerificacion(eq("ana@tracking.com"), eq("Ana Pérez"), enlace.capture());
+            String tokenEnClaro = enlace.getValue().substring(enlace.getValue().indexOf("token=") + "token=".length());
+            assertThat(UUID.fromString(tokenEnClaro)).isNotNull();
+            assertThat(token.getToken()).isEqualTo(AutenticacionService.hash(tokenEnClaro)).isNotEqualTo(tokenEnClaro);
             assertThat(token.getFechaExpiracion()).isAfter(antes.plusHours(2).minusMinutes(1));
             assertThat(token.getFechaExpiracion()).isBefore(LocalDateTime.now().plusHours(2).plusMinutes(1));
             assertThat(token.getUsuario().getEmail()).isEqualTo("ana@tracking.com");
         }
 
         @Test
-        @DisplayName("Si falla el proveedor de correo se conserva el registro del cliente")
-        void falloCorreo_noBloqueaRegistro() {
+        @DisplayName("El correo se solicita después de persistir usuario, cliente y token")
+        void correoDespuesDePersistir() {
+            // EmailService absorbe los fallos del proveedor (ver EmailServiceTest), así que el registro no depende del envío.
             stubPersistenciaRegistro();
-            org.mockito.Mockito.doThrow(new IllegalStateException("proveedor no disponible"))
-                    .when(emailService).enviarVerificacion(any(), any(), any());
 
             ClienteResponseDTO respuesta = clienteService.registrarCliente(registroValido());
 
-            assertThat(respuesta.email()).isEqualTo("ana@tracking.com");
             assertThat(respuesta.estado()).isEqualTo(EstadoUsuario.PENDIENTE_VERIFICACION);
-            verify(clienteRepository).save(any(Cliente.class));
-            verify(tokenRepository).save(any(TokenVerificacion.class));
+            var orden = org.mockito.Mockito.inOrder(usuarioRepository, clienteRepository, tokenRepository, emailService);
+            orden.verify(usuarioRepository).save(any(Usuario.class));
+            orden.verify(clienteRepository).save(any(Cliente.class));
+            orden.verify(tokenRepository).save(any(TokenVerificacion.class));
+            orden.verify(emailService).enviarVerificacion(any(), any(), any());
         }
 
         @Test
@@ -182,15 +188,17 @@ class ClienteServiceTest {
             Usuario usuario = Usuario.builder()
                     .id(1L)
                     .email("ana@tracking.com")
+                    .rol(Rol.CLIENTE)
+                    .activo(true)
                     .estado(EstadoUsuario.PENDIENTE_VERIFICACION)
                     .build();
             TokenVerificacion token = TokenVerificacion.builder()
                     .id(5L)
-                    .token("token-valido")
+                    .token(AutenticacionService.hash("token-valido"))
                     .usuario(usuario)
                     .fechaExpiracion(LocalDateTime.now().plusHours(1))
                     .build();
-            when(tokenRepository.findByToken("token-valido")).thenReturn(Optional.of(token));
+            when(tokenRepository.findByToken(AutenticacionService.hash("token-valido"))).thenReturn(Optional.of(token));
 
             clienteService.verificarCuenta("token-valido");
 
@@ -208,11 +216,11 @@ class ClienteServiceTest {
                     .estado(EstadoUsuario.PENDIENTE_VERIFICACION)
                     .build();
             TokenVerificacion token = TokenVerificacion.builder()
-                    .token("token-expirado")
+                    .token(AutenticacionService.hash("token-expirado"))
                     .usuario(usuario)
                     .fechaExpiracion(LocalDateTime.now().minusMinutes(1))
                     .build();
-            when(tokenRepository.findByToken("token-expirado")).thenReturn(Optional.of(token));
+            when(tokenRepository.findByToken(AutenticacionService.hash("token-expirado"))).thenReturn(Optional.of(token));
 
             assertThatThrownBy(() -> clienteService.verificarCuenta("token-expirado"))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -227,7 +235,7 @@ class ClienteServiceTest {
         @DisplayName("Token inexistente lanza IllegalArgumentException")
         void tokenInvalido_lanzaExcepcion() {
 
-            when(tokenRepository.findByToken("no-existe")).thenReturn(Optional.empty());
+            when(tokenRepository.findByToken(AutenticacionService.hash("no-existe"))).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> clienteService.verificarCuenta("no-existe"))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -257,7 +265,7 @@ class ClienteServiceTest {
             when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
             ActualizarPerfilRequestDTO dto = new ActualizarPerfilRequestDTO("Ana María", "3009999999", "Nueva 12");
 
-            UsuarioResponseDTO respuesta = clienteService.actualizarPerfil(1L, dto);
+            UsuarioResponseDTO respuesta = clienteService.actualizarPerfil(1L, dto, "ana@tracking.com");
 
             assertThat(respuesta.nombre()).isEqualTo("Ana María");
             assertThat(respuesta.telefono()).isEqualTo("3009999999");
@@ -283,7 +291,7 @@ class ClienteServiceTest {
             when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
 
             UsuarioResponseDTO respuesta = clienteService.actualizarPerfil(
-                    1L, new ActualizarPerfilRequestDTO("Ana Pérez", null, null));
+                    1L, new ActualizarPerfilRequestDTO("Ana Pérez", null, null), "ana@tracking.com");
 
             assertThat(respuesta.nombre()).isEqualTo("Ana Pérez");
             assertThat(respuesta.telefono()).isEqualTo("3001111111");
@@ -297,7 +305,7 @@ class ClienteServiceTest {
             when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> clienteService.actualizarPerfil(
-                    99L, new ActualizarPerfilRequestDTO("Nombre", "300", "Dir")))
+                    99L, new ActualizarPerfilRequestDTO("Nombre", "300", "Dir"), "ana@tracking.com"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Usuario no encontrado con ID: 99");
         }
@@ -313,13 +321,13 @@ class ClienteServiceTest {
 
             Usuario usuario = Usuario.builder()
                     .id(1L)
+                    .email("ana@tracking.com")
                     .activo(true)
                     .estado(EstadoUsuario.ACTIVO)
                     .build();
-            Cliente cliente = Cliente.builder().id(10L).usuario(usuario).build();
-            when(clienteRepository.findById(10L)).thenReturn(Optional.of(cliente));
+            when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
 
-            clienteService.desactivarCuentaCliente(10L);
+            clienteService.desactivarCuentaCliente(1L, "ana@tracking.com");
 
             assertThat(usuario.getActivo()).isFalse();
             assertThat(usuario.getEstado()).isEqualTo(EstadoUsuario.INACTIVO);
@@ -327,14 +335,14 @@ class ClienteServiceTest {
         }
 
         @Test
-        @DisplayName("Cliente inexistente lanza IllegalArgumentException")
+        @DisplayName("Usuario inexistente lanza IllegalArgumentException")
         void clienteNoEncontrado() {
 
-            when(clienteRepository.findById(77L)).thenReturn(Optional.empty());
+            when(usuarioRepository.findById(77L)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> clienteService.desactivarCuentaCliente(77L))
+            assertThatThrownBy(() -> clienteService.desactivarCuentaCliente(77L, "ana@tracking.com"))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("Cliente no encontrado con ID: 77");
+                    .hasMessage("Usuario no encontrado con ID: 77");
             verify(usuarioRepository, never()).save(any());
         }
     }

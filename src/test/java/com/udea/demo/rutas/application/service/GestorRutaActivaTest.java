@@ -31,6 +31,13 @@ class GestorRutaActivaTest {
 
     private static final Long CONDUCTOR_ID = 1L;
 
+    /** Misma zona que LocalDate.now() del test: evita fallos cuando la fecha UTC ya cambió (después de las 19:00 en Colombia). */
+    @org.junit.jupiter.api.BeforeEach
+    void zonaOperativa() {
+        org.springframework.test.util.ReflectionTestUtils.setField(gestorRutaActiva, "zonaHoraria",
+                java.time.ZoneId.systemDefault().getId());
+    }
+
     @Test
     @DisplayName("obtenerOCrear() retorna la ruta existente si el conductor ya tiene ruta para hoy")
     void obtenerOCrear_rutaExistente_retornaRutaSinCrearNueva() {

@@ -1,0 +1,33 @@
+package com.udea.demo.rutas.application.service;
+
+import com.udea.demo.pedidos.domain.event.DevolucionIniciadaEvent;
+import com.udea.demo.rutas.domain.model.EstadoParada;
+import com.udea.demo.rutas.domain.model.Ruta;
+import com.udea.demo.rutas.interfaces.persistence.ParadaRutaRepository;
+import com.udea.demo.rutas.interfaces.persistence.RutaRepository;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+
+/**
+ * Un envío en devolución deja de ser una entrega pendiente del conductor. Se ejecuta en la misma
+ * transacción que origina la devolución para mantener la ruta consistente con el estado del envío.
+ */
+@Component
+public class CierreParadaPorDevolucionListener {
+    private final ParadaRutaRepository paradas;
+    private final RutaRepository rutas;
+
+    public CierreParadaPorDevolucionListener(ParadaRutaRepository paradas, RutaRepository rutas) {
+        this.paradas = paradas;
+        this.rutas = rutas;
+    }
+
+    @EventListener
+    public void alIniciarDevolucion(DevolucionIniciadaEvent evento) {
+        paradas.findByPedidoIdAndEstado(evento.pedidoId(), EstadoParada.PENDIENTE).ifPresent(parada -> {
+            Ruta ruta = parada.getRuta();
+            ruta.cancelarParada(evento.pedidoId());
+            rutas.save(ruta);
+        });
+    }
+}

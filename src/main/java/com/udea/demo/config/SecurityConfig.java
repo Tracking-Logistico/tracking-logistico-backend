@@ -103,11 +103,22 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos").hasRole("CLIENTE")
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/mios/**").hasRole("CLIENTE")
                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/pedidos/*/corregir").hasRole("CLIENTE")
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos/mios/tracking/*/reprogramacion")
+                    .hasRole("CLIENTE")
+                .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/pedidos/mios/tracking/*/direccion")
+                    .hasRole("CLIENTE")
+                .requestMatchers("/api/v1/pedidos/incidencias/tipos", "/api/v1/pedidos/*/incidencias").hasRole("OPERADOR")
                 .requestMatchers("/api/v1/pedidos/pendientes", "/api/v1/pedidos/activables",
                                  "/api/v1/pedidos/validados", "/api/v1/pedidos/transito", "/api/v1/pedidos/despachos",
                                  "/api/v1/pedidos/*/validar", "/api/v1/pedidos/*/activar-tracking",
                                  "/api/v1/pedidos/*/estado-logistico", "/api/v1/pedidos/*/etiqueta")
                     .hasRole("OPERADOR")
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos/*/checkpoints",
+                                 "/api/v1/pedidos/checkpoints/sincronizacion").hasRole("CONDUCTOR")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/checkpoints/mios/**")
+                    .hasRole("CONDUCTOR")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/checkpoints/pendientes-revision",
+                                 "/api/v1/pedidos/novedades").hasRole("OPERADOR")
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/pedidos/**")
                     .hasAnyRole("CLIENTE", "OPERADOR", "CONDUCTOR")
                 .requestMatchers("/api/v1/rutas/envios-pendientes", "/api/v1/rutas/asignaciones",

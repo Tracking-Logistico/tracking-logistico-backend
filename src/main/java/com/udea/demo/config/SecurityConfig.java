@@ -137,6 +137,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/panel/cliente/**").hasRole("CLIENTE")
                 .requestMatchers("/api/v1/panel/operador/**").hasRole("OPERADOR")
                 .requestMatchers("/api/v1/panel/conductor/**").hasRole("CONDUCTOR")
+                .requestMatchers("/api/v1/notificaciones/**").hasRole("CLIENTE")
                 .anyRequest().denyAll();
             });
         return http.build();

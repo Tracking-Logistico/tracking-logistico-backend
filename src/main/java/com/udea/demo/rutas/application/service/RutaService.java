@@ -80,7 +80,7 @@ public class RutaService implements RutaServiceI {
     @Override @Transactional
     public RutaResponseDTO asignarVarios(AsignacionMasivaRequestDTO dto) {
         if (dto.pedidoIds() == null || dto.pedidoIds().isEmpty() || dto.pedidoIds().size() > 100 ||
-            dto.pedidoIds().contains(null) || dto.pedidoIds().stream().anyMatch(id -> id <= 0) ||
+            dto.pedidoIds().stream().anyMatch(java.util.Objects::isNull) || dto.pedidoIds().stream().anyMatch(id -> id <= 0) ||
             new HashSet<>(dto.pedidoIds()).size() != dto.pedidoIds().size())
             throw new IllegalArgumentException("Selecciona entre 1 y 100 pedidos distintos");
         Conductor conductor = conductorPorUsuario(dto.conductorId(), true);

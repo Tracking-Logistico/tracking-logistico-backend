@@ -10,15 +10,13 @@ import com.lowagie.text.Document;
 import com.lowagie.text.Image;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfWriter;
+import com.udea.demo.pedidos.domain.model.CodigoQrEnvio;
 import com.udea.demo.pedidos.domain.model.Pedido;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.EnumMap;
-import java.util.HexFormat;
 import java.util.Map;
 
 @Component
@@ -26,8 +24,9 @@ public class EtiquetaPdfGenerador implements GeneradorEtiqueta {
     @Override
     public String generar(Pedido pedido) {
         try {
-            String checksum = checksum(pedido.getNumeroTracking());
-            String qrPayload = pedido.getNumeroTracking() + "|" + checksum;
+            CodigoQrEnvio codigoQr = CodigoQrEnvio.para(pedido.getNumeroTracking());
+            String checksum = codigoQr.checksum();
+            String qrPayload = codigoQr.contenido();
             var hints = new EnumMap<EncodeHintType, Object>(EncodeHintType.class);
             hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);
             var matrix = new QRCodeWriter().encode(qrPayload, BarcodeFormat.QR_CODE, 260, 260, hints);
@@ -62,9 +61,4 @@ public class EtiquetaPdfGenerador implements GeneradorEtiqueta {
     }
 
     private String nullSafe(String value) { return value == null ? "-" : value; }
-
-    private String checksum(String tracking) throws Exception {
-        byte[] digest = MessageDigest.getInstance("SHA-256").digest(tracking.getBytes(StandardCharsets.UTF_8));
-        return HexFormat.of().formatHex(digest).substring(0, 8).toUpperCase();
-    }
 }

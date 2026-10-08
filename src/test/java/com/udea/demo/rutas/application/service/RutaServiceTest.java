@@ -45,6 +45,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("RutaService - aplicación (HU-09)")
 class RutaServiceTest {
+    private static final org.springframework.data.domain.Pageable PAGINA =
+            org.springframework.data.domain.PageRequest.of(0, 20);
 
     @Mock private RutaRepository rutaRepository;
     @Mock private ParadaRutaRepository paradaRutaRepository;
@@ -57,6 +59,8 @@ class RutaServiceTest {
 
     @BeforeEach
     void pedidosParaPruebas() {
+        org.springframework.test.util.ReflectionTestUtils.setField(rutaService, "zonaHoraria",
+                java.time.ZoneId.systemDefault().getId());
         org.mockito.Mockito.lenient().when(pedidoServiceI.obtener(any(Long.class)))
             .thenAnswer(inv -> pedidoDTOEnTransito(inv.getArgument(0)));
     }
@@ -127,10 +131,10 @@ class RutaServiceTest {
 
             when(paradaRutaRepository.findPedidoIdsByEstado(EstadoParada.PENDIENTE))
                     .thenReturn(List.of(20L));
-            when(pedidoServiceI.listarEnTransito())
-                    .thenReturn(List.of(pedidoNoAsignado, pedidoYaAsignado));
+            when(pedidoServiceI.listarEnTransito(PAGINA))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(pedidoNoAsignado, pedidoYaAsignado)));
 
-            List<PedidoResponseDTO> resultado = rutaService.listarEnviosPendientesDeAsignacion();
+            List<PedidoResponseDTO> resultado = rutaService.listarEnviosPendientesDeAsignacion(PAGINA).getContent();
 
             assertThat(resultado).hasSize(1);
             assertThat(resultado.get(0).id()).isEqualTo(PEDIDO_ID);
@@ -142,10 +146,10 @@ class RutaServiceTest {
 
             when(paradaRutaRepository.findPedidoIdsByEstado(EstadoParada.PENDIENTE))
                     .thenReturn(List.of(PEDIDO_ID));
-            when(pedidoServiceI.listarEnTransito())
-                    .thenReturn(List.of(pedidoDTOEnTransito(PEDIDO_ID)));
+            when(pedidoServiceI.listarEnTransito(PAGINA))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(pedidoDTOEnTransito(PEDIDO_ID))));
 
-            List<PedidoResponseDTO> resultado = rutaService.listarEnviosPendientesDeAsignacion();
+            List<PedidoResponseDTO> resultado = rutaService.listarEnviosPendientesDeAsignacion(PAGINA).getContent();
 
             assertThat(resultado).isEmpty();
         }
@@ -156,9 +160,10 @@ class RutaServiceTest {
 
             when(paradaRutaRepository.findPedidoIdsByEstado(EstadoParada.PENDIENTE))
                     .thenReturn(List.of());
-            when(pedidoServiceI.listarEnTransito()).thenReturn(List.of());
+            when(pedidoServiceI.listarEnTransito(PAGINA))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of()));
 
-            List<PedidoResponseDTO> resultado = rutaService.listarEnviosPendientesDeAsignacion();
+            List<PedidoResponseDTO> resultado = rutaService.listarEnviosPendientesDeAsignacion(PAGINA).getContent();
 
             assertThat(resultado).isEmpty();
         }
@@ -292,6 +297,8 @@ class RutaServiceTest {
                     .thenReturn(Optional.of(conductorDestino));
             when(gestorRutaActiva.obtenerOCrear(CONDUCTOR_INTERNO_NUEVO)).thenReturn(rutaDestino);
             when(rutaRepository.saveAndFlush(rutaDestino)).thenAnswer(inv -> inv.getArgument(0));
+            when(conductorRepository.findById(CONDUCTOR_INTERNO_ID))
+                    .thenReturn(Optional.of(conductorOrigen));
             when(conductorRepository.findById(CONDUCTOR_INTERNO_NUEVO))
                     .thenReturn(Optional.of(conductorDestino));
 

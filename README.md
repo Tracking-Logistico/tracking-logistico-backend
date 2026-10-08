@@ -64,3 +64,21 @@ Las pruebas utilizan `application-test.properties` con H2 y Hibernate `create-dr
 `GET /api/v1/pedidos/mios` requiere una sesión de cliente y devuelve una página de hasta 20 pedidos por defecto. Admite `page`, `size` (máximo 50), `sort=fechaCreacion,desc` o `sort=estado,asc`, además de los filtros opcionales `estado`, `fechaDesde=YYYY-MM-DD` y `fechaHasta=YYYY-MM-DD` (fechas de creación, ambas inclusive). La respuesta incluye número de pedido, tracking, remitente, destinatario, estado y fechas estimada y de creación. Un resultado vacío se representa con una página vacía para que el cliente muestre su estado vacío.
 
 Los pedidos se asocian al remitente autenticado al crearlos. Para que un destinatario con cuenta también los vea, se puede enviar `destinatarioEmail` al crear el pedido; el destinatario solo verá el pedido después de que el operador lo pase a `CREADO`. La fecha estimada se calcula al crear o corregir el pedido: 1 día calendario para `EXPRESS` y 3 para `ESTANDAR` y `PROGRAMADO`. `GET /api/v1/pedidos/mios/tracking/{numeroTracking}` devuelve para un envío de la cuenta el estado actual y sus movimientos logísticos, sin exponer datos de contacto o dirección del otro participante. El remitente también conserva los endpoints existentes `GET /api/v1/pedidos/tracking/{numeroTracking}` y `GET /api/v1/pedidos/{id}/historial`.
+
+## Checkpoints logísticos (HU-06) e incidencias (HU-07)
+
+Conductor (`CONDUCTOR`):
+
+- `POST /api/v1/pedidos/{id}/checkpoints`: registra el escaneo del QR de la etiqueta (`numeroTracking|checksum`) con etapa, coordenadas, precisión y `fechaDispositivo`. `idEventoCliente` (UUID generado por el dispositivo) hace idempotente el reenvío: 201 al crear, 200 si ya existía.
+- `POST /api/v1/pedidos/checkpoints/sincronizacion`: lote (máx. 100) de eventos capturados sin conexión; se procesan en orden de `fechaDispositivo` y los que chocan con el estado actual quedan `PENDIENTE_REVISION`. La cola local y el contador de pendientes viven en el frontend.
+- `GET /api/v1/pedidos/checkpoints/mios/pendientes-revision`.
+
+Operador (`OPERADOR`): `GET /api/v1/pedidos/novedades`, `GET /api/v1/pedidos/checkpoints/pendientes-revision`, `GET /api/v1/pedidos/incidencias/tipos`, `POST|GET /api/v1/pedidos/{id}/incidencias` (enviar `versionEsperada` para detectar cambios concurrentes).
+
+Cliente (`CLIENTE`): `GET /api/v1/pedidos/mios/tracking/{t}` incluye la novedad en lenguaje para el cliente; `GET .../reprogramacion/rango`, `POST .../reprogramacion` y `PUT .../direccion`.
+
+Parámetros: `app.checkpoints.precision-maxima-metros` (100), `app.shipment.retencion-bodega-dias` (7), `app.incidencias.max-intentos-entrega` (3), `app.incidencias.plazo-verificacion-direccion-dias-habiles` (3, lunes a viernes, sin festivos) y `app.incidencias.escalamiento-cron`.
+
+### Eventos para notificaciones (RabbitMQ)
+
+Los módulos publican eventos de dominio de Spring; un único adaptador (`config/messaging`) los reenvía, después del commit, al exchange topic `logistica.eventos` con `message-id = eventId` (los consumidores deben descartar duplicados por ese id). Routing keys: `pedido.checkpoint.registrado`, `pedido.checkpoint.pendiente-revision`, `pedido.incidencia.registrada`, `pedido.direccion.verificacion-solicitada`, `pedido.entrega.reprogramada`, `pedido.devolucion.iniciada`. Las colas las declara el módulo de notificaciones. RabbitMQ se activa con `RABBITMQ_ENABLED=true` (perfil `postgres`, por defecto) y está desactivado en H2 y pruebas, donde los eventos solo se registran en el log. Docker Compose incluye RabbitMQ con consola en http://localhost:15672.

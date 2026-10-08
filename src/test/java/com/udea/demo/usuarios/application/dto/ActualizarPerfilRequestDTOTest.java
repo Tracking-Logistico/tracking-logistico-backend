@@ -29,13 +29,13 @@ class ActualizarPerfilRequestDTOTest {
     @Test
     @DisplayName("DTO con nombre válido no produce violaciones")
     void dtoValido_sinViolaciones() {
-        ActualizarPerfilRequestDTO dto = new ActualizarPerfilRequestDTO("Ana María", "300999", "Calle 1");
+        ActualizarPerfilRequestDTO dto = new ActualizarPerfilRequestDTO("Ana María", "+573009990000", "Calle 1");
 
         Set<ConstraintViolation<ActualizarPerfilRequestDTO>> violations = validator.validate(dto);
 
         assertThat(violations).isEmpty();
         assertThat(dto.nombre()).isEqualTo("Ana María");
-        assertThat(dto.telefono()).isEqualTo("300999");
+        assertThat(dto.telefono()).isEqualTo("+573009990000");
         assertThat(dto.direccion()).isEqualTo("Calle 1");
     }
 

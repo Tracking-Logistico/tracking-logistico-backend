@@ -240,7 +240,8 @@ class AutenticacionServiceTest {
                     .hasMessage("Usuario o contraseña incorrectos");
 
             verify(intentoRepository).save(any(IntentoInicioSesion.class));
-            verify(passwordEncoder, never()).matches(anyString(), anyString());
+            // Se compara contra un hash ficticio para que el tiempo de respuesta no revele si el correo existe.
+            verify(passwordEncoder).matches(eq(RAW_PASSWORD), anyString());
         }
 
         @Test
@@ -481,15 +482,22 @@ class AutenticacionServiceTest {
                 "SinNumerosEspecial!",
                 "SinEspecial123"
         })
-        @DisplayName("restablecerPassword() falla si la nueva contraseña es débil")
+        @DisplayName("restablecerPassword() falla si la nueva contraseña es débil y no la guarda")
         void restablecerPassword_passwordDebil(String passwordDebil) {
+            // La política se evalúa con el correo y nombre del usuario del token, por eso se resuelve el token primero.
+            Usuario usuario = crearUsuario(12L, "debil@mail.com", Rol.CLIENTE, EstadoUsuario.ACTIVO, true);
+            when(resetRepository.findByTokenHash(AutenticacionService.hash("token123"))).thenReturn(Optional.of(
+                    new TokenRestablecimientoPassword(AutenticacionService.hash("token123"), usuario,
+                            LocalDateTime.now().plusMinutes(30))));
+            org.mockito.Mockito.doThrow(new PasswordDebilException("La contraseña debe tener mínimo 8 caracteres"))
+                    .when(passwordPolicyService).validar(passwordDebil, usuario.getEmail(), usuario.getNombre());
             RestablecerPasswordDTO dto = new RestablecerPasswordDTO("token123", passwordDebil, passwordDebil);
 
             assertThatThrownBy(() -> autenticacionService.restablecerPassword(dto))
-                    .isInstanceOf(PasswordDebilException.class)
-                    .hasMessageContaining("La contraseña debe tener al menos 8 caracteres");
+                    .isInstanceOf(PasswordDebilException.class);
 
-            verify(resetRepository, never()).findByTokenHash(anyString());
+            verify(usuarioRepository, never()).save(any());
+            verify(passwordEncoder, never()).encode(anyString());
         }
 
         @Test

@@ -65,4 +65,16 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Pedido p where p.id = :id")
     Optional<Pedido> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Pedido p where p.numeroTracking = :numeroTracking")
+    Optional<Pedido> findByNumeroTrackingForUpdate(@Param("numeroTracking") String numeroTracking);
+
+    @Query("""
+        select p.id from Pedido p
+        where p.estado = :estado and p.fechaLimiteVerificacionDireccion < :ahora
+        order by p.fechaLimiteVerificacionDireccion asc
+        """)
+    List<Long> findIdsConPlazoDireccionVencido(@Param("estado") EstadoPedido estado,
+                                               @Param("ahora") LocalDateTime ahora);
 }

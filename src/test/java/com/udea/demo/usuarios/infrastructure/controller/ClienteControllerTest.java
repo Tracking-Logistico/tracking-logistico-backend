@@ -40,6 +40,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ClienteController - HU-01A endpoints REST")
 class ClienteControllerTest {
+    private static final String EMAIL = "ana@tracking.com";
+
+    private static org.springframework.security.core.Authentication autenticado() {
+        return new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(EMAIL, null);
+    }
 
     @Mock private ClienteServiceI clienteService;
     @Mock private UsuarioInternoServiceI usuarioInternoService;
@@ -131,7 +136,7 @@ class ClienteControllerTest {
 
             mockMvc.perform(get("/api/v1/clientes/verificar").param("token", "uuid-token"))
                     .andExpect(status().isOk())
-                    .andExpect(content().string("Correo verificado con éxito. Puedes seguir utilizando tu cuenta."));
+                    .andExpect(content().string("Correo verificado correctamente. Puedes seguir utilizando tu cuenta."));
 
             verify(clienteService).verificarCuenta("uuid-token");
         }
@@ -160,18 +165,19 @@ class ClienteControllerTest {
             UsuarioResponseDTO respuesta = new UsuarioResponseDTO(
                     1L, "Ana María", "ana@tracking.com", "300999", "Nueva",
                     Rol.CLIENTE, EstadoUsuario.ACTIVO, LocalDateTime.now());
-            when(clienteService.actualizarPerfil(eq(1L), any(ActualizarPerfilRequestDTO.class)))
+            when(clienteService.actualizarPerfil(eq(1L), any(ActualizarPerfilRequestDTO.class), eq(EMAIL)))
                     .thenReturn(respuesta);
-            ActualizarPerfilRequestDTO dto = new ActualizarPerfilRequestDTO("Ana María", "300999", "Nueva");
+            ActualizarPerfilRequestDTO dto = new ActualizarPerfilRequestDTO("Ana María", "+573009990000", "Nueva");
 
             mockMvc.perform(put("/api/v1/clientes/1/perfil")
+                            .principal(autenticado())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.nombre").value("Ana María"))
                     .andExpect(jsonPath("$.id").value(1));
 
-            verify(clienteService).actualizarPerfil(eq(1L), any(ActualizarPerfilRequestDTO.class));
+            verify(clienteService).actualizarPerfil(eq(1L), any(ActualizarPerfilRequestDTO.class), eq(EMAIL));
         }
     }
 
@@ -183,10 +189,10 @@ class ClienteControllerTest {
         @DisplayName("204 No Content en baja lógica")
         void desactivar_devuelve204() throws Exception {
 
-            mockMvc.perform(delete("/api/v1/clientes/10"))
+            mockMvc.perform(delete("/api/v1/clientes/10").principal(autenticado()))
                     .andExpect(status().isNoContent());
 
-            verify(clienteService).desactivarCuentaCliente(10L);
+            verify(clienteService).desactivarCuentaCliente(10L, EMAIL);
         }
     }
 }

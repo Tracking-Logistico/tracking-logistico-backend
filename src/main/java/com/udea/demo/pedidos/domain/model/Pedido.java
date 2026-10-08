@@ -1,9 +1,11 @@
 package com.udea.demo.pedidos.domain.model;
 
-import com.udea.demo.pedidos.domain.exception.TrackingNoActivoException;
-import com.udea.demo.pedidos.domain.exception.TransicionEstadoInvalidaException;
+import com.udea.demo.pedidos.domain.exception.*;
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.EnumSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "pedidos")
@@ -44,6 +46,14 @@ public class Pedido {
     @Column(name = "fecha_activacion_tracking") private LocalDateTime fechaActivacionTracking;
     @Column(name = "etiqueta_impresa", nullable = false) private Boolean etiquetaImpresa = false;
     @Column(name = "fecha_impresion_etiqueta") private LocalDateTime fechaImpresionEtiqueta;
+    @Column(name = "intentos_entrega_fallidos", nullable = false) private Integer intentosEntregaFallidos = 0;
+    @Column(name = "fecha_entrega_fallida") private LocalDateTime fechaEntregaFallida;
+    @Column(name = "fecha_entrega_reprogramada") private LocalDate fechaEntregaReprogramada;
+    @Column(name = "fecha_limite_verificacion_direccion") private LocalDateTime fechaLimiteVerificacionDireccion;
+    @Column(name = "fecha_ultima_incidencia") private LocalDateTime fechaUltimaIncidencia;
+
+    private static final Set<EstadoPedido> ESTADOS_EN_ENTREGA =
+            EnumSet.of(EstadoPedido.EN_REPARTO, EstadoPedido.ENTREGA_REPROGRAMADA);
 
     public static Pedido recibir(Long clienteId, String direccionOrigen, String ciudadOrigen, String codigoPostalOrigen,
                                  String direccionDestino, String ciudadDestino, String codigoPostalDestino,
@@ -154,15 +164,95 @@ public class Pedido {
     }
 
     public void cambiarEstadoLogistico(EstadoPedido nuevo) {
-        boolean valido = switch (estado) {
+        if (!puedeCambiarEstadoLogisticoA(nuevo)) throw new TransicionEstadoInvalidaException(estado, nuevo);
+        this.estado = nuevo;
+    }
+
+    /** Valida la transición sin aplicarla; un envío finalizado nunca admite cambios de estado. */
+    public boolean puedeCambiarEstadoLogisticoA(EstadoPedido nuevo) {
+        exigirNoFinalizado();
+        return switch (estado) {
             case CREADO -> nuevo == EstadoPedido.RECIBIDO_EN_ORIGEN || nuevo == EstadoPedido.EN_TRANSITO;
             case RECIBIDO_EN_ORIGEN -> nuevo == EstadoPedido.EN_TRANSITO || nuevo == EstadoPedido.EN_REPARTO;
             case EN_TRANSITO -> nuevo == EstadoPedido.EN_REPARTO;
             case EN_REPARTO -> nuevo == EstadoPedido.ENTREGADO;
+            case ENTREGA_REPROGRAMADA, DIRECCION_POR_VERIFICAR -> nuevo == EstadoPedido.EN_REPARTO;
             default -> false;
         };
-        if (!valido) throw new TransicionEstadoInvalidaException(estado, nuevo);
-        this.estado = nuevo;
+    }
+
+    public void exigirNoFinalizado() {
+        if (estado != null && estado.esFinal()) throw new EnvioFinalizadoException(estado);
+    }
+
+    /**
+     * Aplica una novedad del catálogo y devuelve el estado resultante. Toda incidencia actualiza
+     * {@code fechaUltimaIncidencia}, lo que incrementa la versión y detecta registros concurrentes.
+     */
+    public EstadoPedido registrarIncidencia(TipoIncidencia tipo, int maxIntentos, LocalDateTime ahora,
+                                            LocalDateTime fechaLimiteDireccion) {
+        exigirNoFinalizado();
+        if (!estado.esActivoLogistico())
+            throw new IncidenciaNoPermitidaException("El envío no se encuentra activo en la operación logística");
+        if (tipo.cambiaEstado() && !ESTADOS_EN_ENTREGA.contains(estado))
+            throw new IncidenciaNoPermitidaException("La incidencia '" + tipo.descripcion()
+                    + "' solo aplica a envíos en proceso de entrega");
+        if (tipo.cuentaComoIntento() && intentosEntregaFallidos >= maxIntentos)
+            throw new IncidenciaNoPermitidaException("El envío ya alcanzó el máximo de intentos de entrega");
+
+        this.fechaUltimaIncidencia = ahora;
+        if (tipo.cuentaComoIntento()) {
+            this.intentosEntregaFallidos++;
+            this.fechaEntregaFallida = ahora;
+            this.estado = intentosEntregaFallidos >= maxIntentos
+                    ? EstadoPedido.DEVOLUCION_AL_REMITENTE : EstadoPedido.ENTREGA_FALLIDA;
+        } else if (tipo == TipoIncidencia.DIRECCION_INCORRECTA) {
+            this.fechaLimiteVerificacionDireccion = fechaLimiteDireccion;
+            this.estado = EstadoPedido.DIRECCION_POR_VERIFICAR;
+        } else if (tipo.cambiaEstado()) {
+            this.estado = tipo.estadoResultante();
+        }
+        return estado;
+    }
+
+    /** Desde hoy hasta el último día de retención del paquete en bodega tras el intento fallido. */
+    public RangoReprogramacion rangoReprogramacion(LocalDate hoy, int diasRetencionBodega) {
+        exigirNoFinalizado();
+        if (estado != EstadoPedido.ENTREGA_FALLIDA || fechaEntregaFallida == null)
+            throw new TransicionEstadoInvalidaException(estado, EstadoPedido.ENTREGA_REPROGRAMADA);
+        return new RangoReprogramacion(hoy, fechaEntregaFallida.toLocalDate().plusDays(diasRetencionBodega));
+    }
+
+    public void reprogramarEntrega(LocalDate fecha, LocalDate hoy, int diasRetencionBodega) {
+        RangoReprogramacion rango = rangoReprogramacion(hoy, diasRetencionBodega);
+        if (!rango.contiene(fecha)) throw new FechaReprogramacionInvalidaException(rango);
+        this.fechaEntregaReprogramada = fecha;
+        this.estado = EstadoPedido.ENTREGA_REPROGRAMADA;
+    }
+
+    /** El cliente confirma (o corrige) la dirección dentro del plazo y el envío vuelve a reparto. */
+    public void confirmarDireccion(String direccionDestino, String ciudadDestino, String codigoPostalDestino,
+                                   LocalDateTime ahora) {
+        exigirNoFinalizado();
+        if (estado != EstadoPedido.DIRECCION_POR_VERIFICAR)
+            throw new TransicionEstadoInvalidaException(estado, EstadoPedido.EN_REPARTO);
+        if (plazoVerificacionVencido(ahora)) throw new PlazoVerificacionDireccionVencidoException();
+        if (direccionDestino != null && !direccionDestino.isBlank()) this.direccionDestino = direccionDestino.trim();
+        if (ciudadDestino != null && !ciudadDestino.isBlank()) this.ciudadDestino = ciudadDestino.trim();
+        if (codigoPostalDestino != null && !codigoPostalDestino.isBlank()) this.codigoPostalDestino = codigoPostalDestino.trim();
+        this.fechaLimiteVerificacionDireccion = null;
+        this.estado = EstadoPedido.EN_REPARTO;
+    }
+
+    /** Escala a devolución si el cliente no respondió a tiempo; devuelve {@code false} si no aplica. */
+    public boolean devolverPorPlazoVencido(LocalDateTime ahora) {
+        if (estado != EstadoPedido.DIRECCION_POR_VERIFICAR || !plazoVerificacionVencido(ahora)) return false;
+        this.estado = EstadoPedido.DEVOLUCION_AL_REMITENTE;
+        return true;
+    }
+
+    private boolean plazoVerificacionVencido(LocalDateTime ahora) {
+        return fechaLimiteVerificacionDireccion != null && ahora.isAfter(fechaLimiteVerificacionDireccion);
     }
 
     public void confirmarImpresionEtiqueta() {
@@ -243,6 +333,11 @@ public class Pedido {
     public LocalDateTime getFechaActivacionTracking() { return fechaActivacionTracking; }
     public Boolean getEtiquetaImpresa() { return etiquetaImpresa; }
     public LocalDateTime getFechaImpresionEtiqueta() { return fechaImpresionEtiqueta; }
+    public int getIntentosEntregaFallidos() { return intentosEntregaFallidos == null ? 0 : intentosEntregaFallidos; }
+    public LocalDateTime getFechaEntregaFallida() { return fechaEntregaFallida; }
+    public LocalDate getFechaEntregaReprogramada() { return fechaEntregaReprogramada; }
+    public LocalDateTime getFechaLimiteVerificacionDireccion() { return fechaLimiteVerificacionDireccion; }
+    public LocalDateTime getFechaUltimaIncidencia() { return fechaUltimaIncidencia; }
 
     public static PedidoBuilder builder() { return new PedidoBuilder(); }
     public static class PedidoBuilder {

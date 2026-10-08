@@ -37,6 +37,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("RutaController - web (HU-09)")
 class RutaControllerTest {
+    private static final org.springframework.data.domain.Pageable PAGINA =
+            org.springframework.data.domain.PageRequest.of(0, 20);
 
     @Mock private RutaServiceI rutaService;
 
@@ -76,24 +78,26 @@ class RutaControllerTest {
         void listarEnviosPendientes_feliz() {
 
             List<PedidoResponseDTO> envios = List.of(pedidoDTO(PEDIDO_ID), pedidoDTO(20L));
-            when(rutaService.listarEnviosPendientesDeAsignacion()).thenReturn(envios);
+            when(rutaService.listarEnviosPendientesDeAsignacion(PAGINA))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(envios));
 
-            ResponseEntity<List<PedidoResponseDTO>> respuesta = rutaController.listarEnviosPendientes();
+            ResponseEntity<org.springframework.data.domain.Page<PedidoResponseDTO>> respuesta = rutaController.listarEnviosPendientes(PAGINA);
 
             assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(respuesta.getBody()).isNotNull();
             assertThat(respuesta.getBody()).hasSize(2);
-            assertThat(respuesta.getBody().get(0).id()).isEqualTo(PEDIDO_ID);
-            verify(rutaService).listarEnviosPendientesDeAsignacion();
+            assertThat(respuesta.getBody().getContent().get(0).id()).isEqualTo(PEDIDO_ID);
+            verify(rutaService).listarEnviosPendientesDeAsignacion(PAGINA);
         }
 
         @Test
         @DisplayName("listarEnviosPendientes() devuelve 200 OK con lista vacía si no hay envíos pendientes")
         void listarEnviosPendientes_listaVacia() {
 
-            when(rutaService.listarEnviosPendientesDeAsignacion()).thenReturn(List.of());
+            when(rutaService.listarEnviosPendientesDeAsignacion(PAGINA))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of()));
 
-            ResponseEntity<List<PedidoResponseDTO>> respuesta = rutaController.listarEnviosPendientes();
+            ResponseEntity<org.springframework.data.domain.Page<PedidoResponseDTO>> respuesta = rutaController.listarEnviosPendientes(PAGINA);
 
             assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(respuesta.getBody()).isEmpty();

@@ -27,6 +27,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UsuarioControler - HU-01B cambio de password")
 class UsuarioControlerTest {
+    private static final String EMAIL = "conductor@tracking.com";
+
+    private static org.springframework.security.core.Authentication autenticado() {
+        return new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(EMAIL, null);
+    }
 
     @Mock private UsuarioInternoServiceI usuarioInternoService;
     @InjectMocks private UsuarioControler usuarioControler;
@@ -55,11 +60,12 @@ class UsuarioControlerTest {
 
             mockMvc.perform(put("/api/v1/usuarios/20/password")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(dto)))
+                            .content(objectMapper.writeValueAsString(dto))
+                            .principal(autenticado()))
                     .andExpect(status().isOk())
                     .andExpect(content().string("Contraseña actualizada correctamente."));
 
-            verify(usuarioInternoService).cambiarPassword(20L, "Temporal1!", "NuevaClave1!", "NuevaClave1!");
+            verify(usuarioInternoService).cambiarPassword(20L, EMAIL, "Temporal1!", "NuevaClave1!", "NuevaClave1!");
         }
 
         @Test
@@ -70,11 +76,12 @@ class UsuarioControlerTest {
                     "Temporal1!", "NuevaClave1!", "NuevaClave1!");
             doThrow(new PasswordNoCoincideException())
                     .when(usuarioInternoService)
-                    .cambiarPassword(20L, "Temporal1!", "NuevaClave1!", "NuevaClave1!");
+                    .cambiarPassword(20L, EMAIL, "Temporal1!", "NuevaClave1!", "NuevaClave1!");
 
             mockMvc.perform(put("/api/v1/usuarios/20/password")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(dto)))
+                            .content(objectMapper.writeValueAsString(dto))
+                            .principal(autenticado()))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.confirmarPassword").value("Las contraseñas no coinciden"));
         }
@@ -86,11 +93,12 @@ class UsuarioControlerTest {
                     "Temporal1!", "NuevaClave1!", "NuevaClave1!");
             doThrow(new UsuarioNoEncontradoException(99L))
                     .when(usuarioInternoService)
-                    .cambiarPassword(99L, "Temporal1!", "NuevaClave1!", "NuevaClave1!");
+                    .cambiarPassword(99L, EMAIL, "Temporal1!", "NuevaClave1!", "NuevaClave1!");
 
             mockMvc.perform(put("/api/v1/usuarios/99/password")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(dto)))
+                            .content(objectMapper.writeValueAsString(dto))
+                            .principal(autenticado()))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.error").value("Usuario no encontrado con ID: 99"));
         }

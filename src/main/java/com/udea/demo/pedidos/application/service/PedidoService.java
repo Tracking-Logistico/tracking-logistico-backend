@@ -31,12 +31,14 @@ public class PedidoService implements PedidoServiceI {
 
     private final LimitesServicioService limites;
     private final com.udea.demo.pedidos.interfaces.services.AccesoPedidoConductorI accesoConductor;
+    private final SeguimientoClienteService seguimientoCliente;
 
     public PedidoService(PedidoRepository pedidos, PrioridadStrategy prioridadStrategy,
                          GeneradorNumeroPedido numerosPedido, GeneradorNumeroTracking numerosTracking,
                          GeneradorEtiqueta etiquetas, ActorAuthorizationService actores,
                          HistorialPedidoRepository historial, LimitesServicioService limites,
-                         com.udea.demo.pedidos.interfaces.services.AccesoPedidoConductorI accesoConductor) {
+                         com.udea.demo.pedidos.interfaces.services.AccesoPedidoConductorI accesoConductor,
+                         SeguimientoClienteService seguimientoCliente) {
         this.pedidos = pedidos;
         this.prioridadStrategy = prioridadStrategy;
         this.numerosPedido = numerosPedido;
@@ -46,6 +48,7 @@ public class PedidoService implements PedidoServiceI {
         this.historial = historial;
         this.limites = limites;
         this.accesoConductor = accesoConductor;
+        this.seguimientoCliente = seguimientoCliente;
     }
 
     @Override @Transactional
@@ -137,31 +140,7 @@ public class PedidoService implements PedidoServiceI {
 
     @Override @Transactional(readOnly = true)
     public SeguimientoClienteResponseDTO obtenerSeguimientoCliente(String numeroTracking) {
-        Pedido p = pedidos.findByNumeroTracking(numeroTracking)
-                .orElseThrow(() -> new PedidoNoEncontradoException(numeroTracking));
-        var actor = actores.actorActual();
-        if (actor.getRol() != Rol.CLIENTE) {
-            throw new AccessDeniedException("El seguimiento de cuenta solo está disponible para clientes");
-        }
-        boolean remitente = p.getClienteId().equals(actores.clienteActualId());
-        boolean destinatario = p.getDestinatarioEmail() != null
-                && p.getDestinatarioEmail().equalsIgnoreCase(actor.getEmail())
-                && !List.of(EstadoPedido.SOLICITADO, EstadoPedido.CORRECCION_SOLICITADA, EstadoPedido.RECHAZADO)
-                .contains(p.getEstado());
-        if (!remitente && !destinatario) {
-            throw new AccessDeniedException("El pedido no está asociado al cliente autenticado");
-        }
-        List<MovimientoSeguimientoResponseDTO> movimientos = historial
-                .findByPedidoIdOrderByFechaAsc(p.getId()).stream()
-                .filter(h -> "TRACKING_ACTIVADO".equals(h.getTipoEvento())
-                        || "ESTADO_LOGISTICO".equals(h.getTipoEvento()))
-                .map(h -> new MovimientoSeguimientoResponseDTO(
-                        "TRACKING_ACTIVADO".equals(h.getTipoEvento())
-                                ? EstadoPedido.CREADO : EstadoPedido.valueOf(h.getDetalle()),
-                        h.getFecha()))
-                .toList();
-        return new SeguimientoClienteResponseDTO(p.getId(), p.getNumeroPedido(), p.getNumeroTracking(),
-                p.getEstado(), p.getFechaEstimadaEntrega(), movimientos);
+        return seguimientoCliente.obtener(numeroTracking);
     }
 
     @Override @Transactional

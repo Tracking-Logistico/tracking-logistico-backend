@@ -130,3 +130,24 @@ un proveedor real (Twilio) basta con:
 1. Añadir la dependencia al `pom.xml`.
 2. Crear `TwilioSmsSender implements SmsSenderI` con `@ConditionalOnProperty(name = "app.notifications.sms-provider", havingValue = "twilio")`.
 3. Configurar `app.notifications.sms-provider=twilio` y las credenciales.
+
+### HU - Panel del conductor: bajo consumo de datos
+
+El backend expone los endpoints necesarios para que el frontend consulte de
+forma incremental la información del panel:
+
+- `GET /api/v1/conductor/panel/entregas`
+- `GET /api/v1/conductor/panel/progreso`
+- `GET /api/v1/conductor/panel/siguiente`
+
+La estrategia de sincronización periódica va a ser responsabilidad del frontend. Al
+abrir el panel, el cliente carga la información inicial y luego consulta
+`/progreso` cada 20 o 30 segundos. Si detecta cambios en los contadores, vuelve
+a consultar las entregas y la siguiente parada.
+
+Después de registrar un checkpoint o una incidencia, el frontend puede
+actualizar inmediatamente la información sin esperar al siguiente ciclo.
+
+De esta forma, el frontend evita recargar toda la ruta en cada actualización y
+minimiza el consumo de datos en redes móviles limitadas. El backend conserva
+además el soporte de sincronización offline de checkpoints.

@@ -48,9 +48,9 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
             or lower(p.remitenteEmail) = lower(:email)
             or (lower(p.destinatarioEmail) = lower(:email)
                 and p.estado not in :estadosNoAsociados))
-          and (:estado is null or p.estado = :estado)
-          and (:fechaDesde is null or p.fechaCreacion >= :fechaDesde)
-          and (:fechaHasta is null or p.fechaCreacion < :fechaHasta)
+            and (cast(:estado as string) is null or p.estado = :estado)
+            and (cast(:fechaDesde as timestamp) is null or p.fechaCreacion >= :fechaDesde)
+            and (cast(:fechaHasta as timestamp) is null or p.fechaCreacion < :fechaHasta)
         """)
     Page<Pedido> findPedidosDeCliente(@Param("clienteId") Long clienteId,
                                      @Param("email") String email,

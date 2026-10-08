@@ -111,4 +111,44 @@ public class EmailService implements EmailServiceI {
         if (email == null || !email.contains("@")) return "***";
         return (email.length() > 1 ? email.substring(0, 1) : "*") + "***@" + email.substring(email.indexOf('@') + 1);
     }
+
+
+
+
+
+    @Override
+    public void enviarNotificacionCambioEstado(String destinatario, String asunto, String contenido) {
+        if (!mailEnabled) {
+            log.warn("MAIL_NOTIF_DESHABILITADO destinatario={} asunto={}", enmascarar(destinatario), asunto);
+            return;
+        }
+        if ("resend".equalsIgnoreCase(provider)) {
+            if (resendApiKey == null || resendApiKey.isBlank() || from == null || from.isBlank()) {
+                throw new IllegalStateException("Resend sin RESEND_API_KEY o MAIL_FROM");
+            }
+            // Si Resend devuelve 4xx/5xx, RestClientResponseException se propaga.
+            resend.post().uri("/emails")
+                    .header("Authorization", "Bearer " + resendApiKey)
+                    .body(java.util.Map.of(
+                            "from", from,
+                            "to", java.util.List.of(destinatario),
+                            "subject", asunto,
+                            "text", contenido))
+                    .retrieve().toBodilessEntity();
+        } else if ("smtp".equalsIgnoreCase(provider)) {
+            String remitente = from == null || from.isBlank() ? smtpUsername : from;
+            if (remitente == null || remitente.isBlank()) {
+                throw new IllegalStateException("SMTP sin MAIL_FROM ni MAIL_USERNAME");
+            }
+            org.springframework.mail.SimpleMailMessage mensaje = new org.springframework.mail.SimpleMailMessage();
+            mensaje.setFrom(remitente);
+            mensaje.setTo(destinatario);
+            mensaje.setSubject(asunto);
+            mensaje.setText(contenido);
+            mailSender.send(mensaje); // MailException se propaga
+        } else {
+            throw new IllegalStateException("MAIL_PROVIDER no soportado: " + provider);
+        }
+        log.info("MAIL_NOTIF_ACEPTADA proveedor={} destinatario={}", provider, enmascarar(destinatario));
+    }
 }

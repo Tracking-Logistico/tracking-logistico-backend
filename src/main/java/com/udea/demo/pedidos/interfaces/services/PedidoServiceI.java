@@ -25,4 +25,7 @@ public interface PedidoServiceI {
     PedidoResponseDTO cambiarEstadoLogistico(Long id, CambiarEstadoLogisticoRequestDTO dto);
     EtiquetaEnvioResponseDTO generarEtiqueta(Long id);
     List<HistorialPedidoResponseDTO> historial(Long id);
+    List<HistorialPedidoResponseDTO> historialParaConductor(Long id);
+    java.util.Map<Long, PedidoResponseDTO> obtenerPorIds(java.util.Collection<Long> ids);
+    PedidoResponseDTO obtenerParaConductor(Long pedidoId);
 }

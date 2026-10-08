@@ -67,6 +67,13 @@ public class Ruta {
                 .toList();
         for (int i = 0; i < activas.size(); i++) activas.get(i).actualizarOrden(i + 1);
     }
+    public void marcarParadaEntregada(Long pedidoId) {
+        ParadaRuta parada = paradas.stream()
+                .filter(p -> p.getPedidoId().equals(pedidoId) && p.getEstado() == EstadoParada.PENDIENTE)
+                .findFirst()
+                .orElseThrow(() -> new EnvioNoAsignadoException(pedidoId));
+        parada.marcarEntregada();
+    }
 
     public void reordenar(List<Long> pedidoIdsEnOrden) {
         aplicarOrden(pedidoIdsEnOrden);

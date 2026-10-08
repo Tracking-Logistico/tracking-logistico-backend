@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 
 @Repository
 public interface PedidoRepository extends JpaRepository<Pedido, Long> {
+    List<Pedido> findByIdIn(java.util.Collection<Long> ids);
     List<Pedido> findByEstadoInOrderByFechaCreacionAsc(List<EstadoPedido> estados);
 
     Page<Pedido> findByEstadoInOrderByFechaCreacionAsc(List<EstadoPedido> estados, Pageable pageable);

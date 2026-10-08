@@ -43,6 +43,11 @@ public class ParadaRuta {
     void cancelar() {
         this.estado = EstadoParada.CANCELADA;
     }
+    
+    void marcarEntregada() {
+    if (this.estado != EstadoParada.PENDIENTE) return;
+    this.estado = EstadoParada.ENTREGADO;
+    }
 
     void actualizarOrden(int nuevoOrden) {
         this.orden = nuevoOrden;

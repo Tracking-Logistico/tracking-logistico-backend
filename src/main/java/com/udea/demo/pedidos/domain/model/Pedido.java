@@ -51,6 +51,7 @@ public class Pedido {
     @Column(name = "fecha_entrega_reprogramada") private LocalDate fechaEntregaReprogramada;
     @Column(name = "fecha_limite_verificacion_direccion") private LocalDateTime fechaLimiteVerificacionDireccion;
     @Column(name = "fecha_ultima_incidencia") private LocalDateTime fechaUltimaIncidencia;
+    @Column(name = "indicaciones_acceso", length = 500) private String indicacionesAcceso;
 
     private static final Set<EstadoPedido> ESTADOS_EN_ENTREGA =
             EnumSet.of(EstadoPedido.EN_REPARTO, EstadoPedido.ENTREGA_REPROGRAMADA);
@@ -338,6 +339,11 @@ public class Pedido {
     public LocalDate getFechaEntregaReprogramada() { return fechaEntregaReprogramada; }
     public LocalDateTime getFechaLimiteVerificacionDireccion() { return fechaLimiteVerificacionDireccion; }
     public LocalDateTime getFechaUltimaIncidencia() { return fechaUltimaIncidencia; }
+    public String getIndicacionesAcceso() { return indicacionesAcceso; }
+    
+    public void setIndicacionesAcceso(String indicacionesAcceso) {
+        this.indicacionesAcceso = indicacionesAcceso;
+    }
 
     public static PedidoBuilder builder() { return new PedidoBuilder(); }
     public static class PedidoBuilder {
@@ -423,7 +429,6 @@ public class Pedido {
             return pedido;
         }
     }
-
     private static String normalizarEmail(String email) {
         return email == null || email.isBlank() ? null : email.trim().toLowerCase(java.util.Locale.ROOT);
     }

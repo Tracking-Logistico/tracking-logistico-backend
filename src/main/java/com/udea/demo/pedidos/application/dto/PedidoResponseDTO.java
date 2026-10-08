@@ -36,7 +36,9 @@ public record PedidoResponseDTO(
     String remitenteNombre,
     String remitenteEmail,
     String remitenteTelefono,
-    LocalDateTime fechaEstimadaEntrega
+    LocalDateTime fechaEstimadaEntrega,
+    String indicacionesAcceso,                        // ← nuevo
+    java.time.LocalDate fechaEntregaReprogramada  
 ) {
     public PedidoResponseDTO(Long id, String numeroPedido, Long clienteId, String direccionOrigen,
             String direccionDestino, String descripcionPaquete, Double pesoKg, Double largoCm, Double anchoCm,
@@ -48,6 +50,6 @@ public record PedidoResponseDTO(
                 altoCm, tipoServicio, prioridadSugerida, prioridadConfirmada, estado, observacionesValidacion,
                 operadorValidadorId, fechaCreacion, fechaValidacion, numeroTracking, fechaActivacionTracking,
                 etiquetaImpresa, fechaImpresionEtiqueta, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
     }
 }

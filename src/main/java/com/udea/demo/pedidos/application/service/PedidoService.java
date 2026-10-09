@@ -62,6 +62,7 @@ public class PedidoService implements PedidoServiceI {
                 dto.descripcionPaquete(), dto.pesoKg(), dto.largoCm(), dto.anchoCm(), dto.altoCm(),
                 dto.tipoServicio(), generarNumeroPedidoUnico(), sugerida, dto.destinatarioNombre(), dto.destinatarioTelefono(),
                 remitente.getNombre(), remitente.getEmail(), dto.remitenteTelefono(), dto.destinatarioEmail());
+        pedido.setCoordenadasDestino(dto.latitudDestino(), dto.longitudDestino());
         Pedido guardado = pedidos.save(pedido);
         evento(guardado.getId(), actores.actorActual().getId(), "PEDIDO_SOLICITADO", null,
                 "Pedido creado por el cliente");
@@ -78,6 +79,7 @@ public class PedidoService implements PedidoServiceI {
                 dto.ciudadDestino(), dto.codigoPostalDestino(), dto.descripcionPaquete(), dto.pesoKg(), dto.largoCm(),
                 dto.anchoCm(), dto.altoCm(), dto.tipoServicio(), dto.destinatarioNombre(), dto.destinatarioTelefono(),
                 dto.remitenteTelefono(), sugerida, dto.destinatarioEmail());
+        p.setCoordenadasDestino(dto.latitudDestino(), dto.longitudDestino());
         evento(id, actores.actorActual().getId(), "PEDIDO_CORREGIDO", null, "El cliente actualizó la información observada");
         return map(pedidos.save(p));
     }
@@ -244,7 +246,7 @@ public class PedidoService implements PedidoServiceI {
                 p.getNumeroTracking(), p.getFechaActivacionTracking(), p.getEtiquetaImpresa(), p.getFechaImpresionEtiqueta(),
                 p.getDestinatarioNombre(), p.getDestinatarioTelefono(), p.getJustificacionPrioridad(),
                 p.getCiudadOrigen(), p.getCiudadDestino(), p.getCodigoPostalOrigen(), p.getCodigoPostalDestino(),
-                p.getRemitenteNombre(), p.getRemitenteEmail(), p.getRemitenteTelefono(), p.getFechaEstimadaEntrega(), p.getIndicacionesAcceso(), p.getFechaEntregaReprogramada());
+                p.getRemitenteNombre(), p.getRemitenteEmail(), p.getRemitenteTelefono(), p.getFechaEstimadaEntrega(), p.getIndicacionesAcceso(), p.getFechaEntregaReprogramada(), p.getLatitudDestino(), p.getLongitudDestino());
     }
 
     private PedidoClienteResponseDTO mapCliente(Pedido p) {

@@ -52,6 +52,8 @@ public class Pedido {
     @Column(name = "fecha_limite_verificacion_direccion") private LocalDateTime fechaLimiteVerificacionDireccion;
     @Column(name = "fecha_ultima_incidencia") private LocalDateTime fechaUltimaIncidencia;
     @Column(name = "indicaciones_acceso", length = 500) private String indicacionesAcceso;
+    @Column(name = "latitud_destino") private Double latitudDestino;
+    @Column(name = "longitud_destino") private Double longitudDestino;
 
     private static final Set<EstadoPedido> ESTADOS_EN_ENTREGA =
             EnumSet.of(EstadoPedido.EN_REPARTO, EstadoPedido.ENTREGA_REPROGRAMADA);
@@ -176,7 +178,9 @@ public class Pedido {
             case CREADO -> nuevo == EstadoPedido.RECIBIDO_EN_ORIGEN || nuevo == EstadoPedido.EN_TRANSITO;
             case RECIBIDO_EN_ORIGEN -> nuevo == EstadoPedido.EN_TRANSITO || nuevo == EstadoPedido.EN_REPARTO;
             case EN_TRANSITO -> nuevo == EstadoPedido.EN_REPARTO;
-            case EN_REPARTO -> nuevo == EstadoPedido.ENTREGADO;
+            case EN_REPARTO -> nuevo == EstadoPedido.ENTREGADO
+                    || nuevo == EstadoPedido.ENTREGA_FALLIDA_CERRADA
+                    || nuevo == EstadoPedido.DEVOLUCION_AL_REMITENTE;
             case ENTREGA_REPROGRAMADA, DIRECCION_POR_VERIFICAR -> nuevo == EstadoPedido.EN_REPARTO;
             default -> false;
         };
@@ -340,6 +344,12 @@ public class Pedido {
     public LocalDateTime getFechaLimiteVerificacionDireccion() { return fechaLimiteVerificacionDireccion; }
     public LocalDateTime getFechaUltimaIncidencia() { return fechaUltimaIncidencia; }
     public String getIndicacionesAcceso() { return indicacionesAcceso; }
+    public Double getLatitudDestino() { return latitudDestino; }
+    public Double getLongitudDestino() { return longitudDestino; }
+    public void setCoordenadasDestino(Double latitud, Double longitud) {
+        this.latitudDestino = latitud;
+        this.longitudDestino = longitud;
+    }
     
     public void setIndicacionesAcceso(String indicacionesAcceso) {
         this.indicacionesAcceso = indicacionesAcceso;

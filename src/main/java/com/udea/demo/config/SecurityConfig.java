@@ -134,9 +134,9 @@ public class SecurityConfig {
                     .hasRole("CLIENTE")
                 .requestMatchers("/api/v1/usuarios/*/password")
                     .hasAnyRole("CLIENTE", "OPERADOR", "CONDUCTOR", "PASSWORD_CHANGE")
-                .requestMatchers("/api/v1/panel/cliente/**").hasRole("CLIENTE")
-                .requestMatchers("/api/v1/panel/operador/**").hasRole("OPERADOR")
-                .requestMatchers("/api/v1/panel/conductor/**").hasRole("CONDUCTOR")
+                
+                .requestMatchers("/api/v1/notificaciones/**").hasRole("CLIENTE")
+                .requestMatchers("/api/v1/conductor/panel/**").hasRole("CONDUCTOR")
                 .anyRequest().denyAll();
             });
         return http.build();

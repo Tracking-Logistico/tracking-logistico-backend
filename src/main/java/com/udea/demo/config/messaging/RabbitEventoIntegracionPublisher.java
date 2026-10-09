@@ -27,6 +27,7 @@ public class RabbitEventoIntegracionPublisher {
                                             @Value("${app.messaging.rabbitmq.exchange:logistica.eventos}") String exchange) {
         this.rabbit = rabbit;
         this.exchange = exchange;
+        log.info("RabbitEventoIntegracionPublisher listo, exchange={}", exchange);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)

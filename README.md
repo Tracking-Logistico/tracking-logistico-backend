@@ -82,3 +82,72 @@ Parámetros: `app.checkpoints.precision-maxima-metros` (100), `app.shipment.rete
 ### Eventos para notificaciones (RabbitMQ)
 
 Los módulos publican eventos de dominio de Spring; un único adaptador (`config/messaging`) los reenvía, después del commit, al exchange topic `logistica.eventos` con `message-id = eventId` (los consumidores deben descartar duplicados por ese id). Routing keys: `pedido.checkpoint.registrado`, `pedido.checkpoint.pendiente-revision`, `pedido.incidencia.registrada`, `pedido.direccion.verificacion-solicitada`, `pedido.entrega.reprogramada`, `pedido.devolucion.iniciada`. Las colas las declara el módulo de notificaciones. RabbitMQ se activa con `RABBITMQ_ENABLED=true` (perfil `postgres`, por defecto) y está desactivado en H2 y pruebas, donde los eventos solo se registran en el log. Docker Compose incluye RabbitMQ con consola en http://localhost:15672.
+
+## Notificaciones automáticas (HU-11)
+
+Cuando un envío alcanza un **hito clave**, el cliente recibe automáticamente un correo
+y/o un SMS con el código de seguimiento y un enlace directo al portal de trazabilidad.
+
+### Hitos notificables
+
+| Estado / evento | Disparador | Mensaje |
+|---|---|---|
+| `EN_TRANSITO` | Checkpoint del conductor | "Tu paquete está en camino hacia la ciudad de destino." |
+| `EN_REPARTO` | Checkpoint del conductor | "Tu paquete salió a reparto y llegará hoy." |
+| `ENTREGADO` | Checkpoint del conductor | "Tu paquete fue entregado. ¡Gracias por confiar en nosotros!" |
+| `ENTREGA_FALLIDA` | Incidencia `CLIENTE_AUSENTE` | "No pudimos entregar tu paquete..." |
+| `ENTREGA_REPROGRAMADA` | Reprogramación del cliente | "Tu entrega fue reprogramada." |
+
+Eventos no notificables (informativos o internos) se descartan silenciosamente.
+El primer checkpoint `RECIBIDO_EN_ORIGEN` no notifica porque no es hito para el cliente.
+
+### Preferencias del cliente
+
+- `GET /api/v1/notificaciones/preferencias` (CLIENTE): devuelve canal actual (`EMAIL`, `SMS` o `AMBOS`).
+- `PUT /api/v1/notificaciones/preferencias` (CLIENTE): cambia canal y teléfono SMS.
+
+La ausencia de fila equivale a `EMAIL` por defecto. Las notificaciones críticas de
+seguridad de la cuenta (verificación, restablecimiento) **no** respetan esta preferencia
+y siempre se envían por correo.
+
+### Topología RabbitMQ
+
+```mermaid
+flowchart LR
+    EX[logistica.eventos<br/>topic] -- "pedido.#" --> Q[notification.queue]
+    Q -- fallo --> R[notification.retry.queue<br/>TTL 5s]
+    R -- "expira TTL<br/>vuelve a la cola" --> Q
+    Q -- "3 intentos agotados" --> DLQ[notification.dlq]
+```
+- **`notification.queue`**: consume todos los eventos `pedido.*` del exchange.
+- **`notification.retry.queue`**: TTL de 5s. Tras el TTL, el mensaje vuelve a la cola principal.
+- **`notification.dlq`**: mensajes que agotaron los 3 intentos. Se revisan manualmente.
+
+### Nota sobre SMS
+
+La implementación actual usa `SmsMockSender`, que solo escribe un log. Para integrar
+un proveedor real (Twilio) basta con:
+1. Añadir la dependencia al `pom.xml`.
+2. Crear `TwilioSmsSender implements SmsSenderI` con `@ConditionalOnProperty(name = "app.notifications.sms-provider", havingValue = "twilio")`.
+3. Configurar `app.notifications.sms-provider=twilio` y las credenciales.
+
+### HU - Panel del conductor: bajo consumo de datos
+
+El backend expone los endpoints necesarios para que el frontend consulte de
+forma incremental la información del panel:
+
+- `GET /api/v1/conductor/panel/entregas`
+- `GET /api/v1/conductor/panel/progreso`
+- `GET /api/v1/conductor/panel/siguiente`
+
+La estrategia de sincronización periódica va a ser responsabilidad del frontend. Al
+abrir el panel, el cliente carga la información inicial y luego consulta
+`/progreso` cada 20 o 30 segundos. Si detecta cambios en los contadores, vuelve
+a consultar las entregas y la siguiente parada.
+
+Después de registrar un checkpoint o una incidencia, el frontend puede
+actualizar inmediatamente la información sin esperar al siguiente ciclo.
+
+De esta forma, el frontend evita recargar toda la ruta en cada actualización y
+minimiza el consumo de datos en redes móviles limitadas. El backend conserva
+además el soporte de sincronización offline de checkpoints.

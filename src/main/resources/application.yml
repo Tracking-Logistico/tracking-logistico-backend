@@ -72,3 +72,9 @@ app:
     max-intentos-entrega: ${INCIDENT_MAX_DELIVERY_ATTEMPTS:3}
     plazo-verificacion-direccion-dias-habiles: ${INCIDENT_ADDRESS_DEADLINE_BUSINESS_DAYS:3}
     escalamiento-cron: ${INCIDENT_ESCALATION_CRON:0 0 * * * *}
+  notifications:
+    tracking-url: ${TRACKING_URL:http://localhost:5173/tracking}
+    retry-ttl-ms: ${NOTIF_RETRY_TTL_MS:5000}
+    max-intentos: ${NOTIF_MAX_INTENTOS:3}
+    sms-provider: ${SMS_PROVIDER:mock}
+    sms-enabled: ${SMS_ENABLED:false}

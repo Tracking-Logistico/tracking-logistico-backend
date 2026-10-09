@@ -244,7 +244,7 @@ public class PedidoService implements PedidoServiceI {
                 p.getNumeroTracking(), p.getFechaActivacionTracking(), p.getEtiquetaImpresa(), p.getFechaImpresionEtiqueta(),
                 p.getDestinatarioNombre(), p.getDestinatarioTelefono(), p.getJustificacionPrioridad(),
                 p.getCiudadOrigen(), p.getCiudadDestino(), p.getCodigoPostalOrigen(), p.getCodigoPostalDestino(),
-                p.getRemitenteNombre(), p.getRemitenteEmail(), p.getRemitenteTelefono(), p.getFechaEstimadaEntrega());
+                p.getRemitenteNombre(), p.getRemitenteEmail(), p.getRemitenteTelefono(), p.getFechaEstimadaEntrega(), p.getIndicacionesAcceso(), p.getFechaEntregaReprogramada());
     }
 
     private PedidoClienteResponseDTO mapCliente(Pedido p) {
@@ -256,4 +256,31 @@ public class PedidoService implements PedidoServiceI {
                 p.getRemitenteNombre(), p.getDestinatarioNombre(), p.getEstado(),
                 p.getFechaCreacion(), fechaEstimada);
     }
+    @Override @Transactional(readOnly = true)
+    public java.util.Map<Long, PedidoResponseDTO> obtenerPorIds(java.util.Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) return java.util.Map.of();
+        return pedidos.findByIdIn(ids).stream()
+                .collect(java.util.stream.Collectors.toMap(Pedido::getId, this::map));
+    }
+
+    @Override @Transactional(readOnly = true)
+    public PedidoResponseDTO obtenerParaConductor(Long pedidoId) {
+        Pedido p = buscar(pedidoId);
+        var actor = actores.actorActual();
+        if (actor.getRol() == Rol.CONDUCTOR && !accesoConductor.fueAsignado(p.getId(), actor.getId()))
+            throw new AccessDeniedException("El envío no está asignado al conductor autenticado");
+        return map(p);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public List<HistorialPedidoResponseDTO> historialParaConductor(Long id) {
+        Pedido p = buscar(id);
+        var actor = actores.actorActual();
+        if (actor.getRol() != Rol.CONDUCTOR || !accesoConductor.fueAsignado(p.getId(), actor.getId()))
+            throw new AccessDeniedException("El envío no está asignado al conductor autenticado");
+        return historial.findByPedidoIdOrderByFechaAsc(id).stream()
+                .map(h -> new HistorialPedidoResponseDTO(h.getId(), h.getUsuarioId(), h.getTipoEvento(),
+                        h.getCampoObservado(), h.getDetalle(), h.getFecha())).toList();
+    }
+
 }

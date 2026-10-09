@@ -4,7 +4,8 @@ package com.udea.demo.pedidos.domain.model;
 public enum EtapaCheckpoint {
     RECIBIDO_EN_ORIGEN(EstadoPedido.RECIBIDO_EN_ORIGEN),
     EN_TRANSITO(EstadoPedido.EN_TRANSITO),
-    EN_REPARTO(EstadoPedido.EN_REPARTO);
+    EN_REPARTO(EstadoPedido.EN_REPARTO),
+    ENTREGADO(EstadoPedido.ENTREGADO); 
 
     private final EstadoPedido estado;
 

@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.udea.demo.rutas.domain.service.DijkstraRoute;
 
 @Service
 public class PanelConductorService implements PanelConductorServiceI {
@@ -141,6 +142,42 @@ public class PanelConductorService implements PanelConductorServiceI {
                 pedido.numeroTracking(), pedido.direccionDestino(), pedido.ciudadDestino(),
                 pedido.destinatarioNombre(), pedido.destinatarioTelefono(),
                 pedido.indicacionesAcceso(), pedido.pesoKg());
+    }
+
+    @Override
+    @Transactional
+    public RutaConductorResponseDTO ruta() {
+        Ruta ruta = rutaDeHoyDelConductorAutenticado();
+        if (ruta == null) return new RutaConductorResponseDTO(List.of(), null);
+        Map<Long, PedidoResponseDTO> porId = pedidos.obtenerPorIds(
+                ruta.getParadas().stream().map(ParadaRuta::getPedidoId).collect(Collectors.toSet()));
+        List<ParadaRuta> activas = ruta.getParadas().stream()
+                .filter(p -> p.getEstado() != EstadoParada.CANCELADA)
+                .sorted(Comparator.comparing(ParadaRuta::getOrden)).toList();
+        List<DijkstraRoute.Stop> ubicadas = activas.stream()
+                .map(p -> porId.get(p.getPedidoId()))
+                .filter(Objects::nonNull)
+                .filter(p -> p.latitudDestino() != null && p.longitudDestino() != null)
+                .map(p -> new DijkstraRoute.Stop(p.id(), p.latitudDestino(), p.longitudDestino())).toList();
+        List<Long> ordenUbicadas = DijkstraRoute.order(ubicadas);
+        List<Long> orden = new ArrayList<>(ordenUbicadas);
+        activas.stream().map(ParadaRuta::getPedidoId).filter(id -> !orden.contains(id)).forEach(orden::add);
+        if (!orden.isEmpty()) {
+            ruta.reordenarAutomatico(orden);
+            rutas.save(ruta);
+        }
+        List<ParadaRutaConductorDTO> respuesta = ruta.getParadas().stream()
+                .filter(p -> p.getEstado() != EstadoParada.CANCELADA)
+                .sorted(Comparator.comparing(ParadaRuta::getOrden))
+                .map(p -> {
+                    PedidoResponseDTO pedido = porId.get(p.getPedidoId());
+                    boolean sinUbicacion = pedido == null || pedido.latitudDestino() == null || pedido.longitudDestino() == null;
+                    return new ParadaRutaConductorDTO(p.getId(), p.getPedidoId(), p.getOrden(),
+                            pedido == null ? null : pedido.direccionDestino(),
+                            pedido == null ? null : pedido.ciudadDestino(), p.getEstado().name(), sinUbicacion);
+                }).toList();
+        return new RutaConductorResponseDTO(respuesta, respuesta.stream()
+                .filter(p -> "PENDIENTE".equals(p.estado())).findFirst().orElse(null));
     }
 
     // ----- helpers -----

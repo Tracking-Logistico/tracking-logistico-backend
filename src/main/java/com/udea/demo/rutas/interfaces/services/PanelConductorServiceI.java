@@ -4,6 +4,7 @@ import com.udea.demo.rutas.application.dto.DetalleEntregaDTO;
 import com.udea.demo.rutas.application.dto.ParadaPanelDTO;
 import com.udea.demo.rutas.application.dto.ProgresoPanelDTO;
 import com.udea.demo.rutas.application.dto.SiguienteParadaDTO;
+import com.udea.demo.rutas.application.dto.RutaConductorResponseDTO;
 
 import java.util.List;
 
@@ -20,4 +21,5 @@ public interface PanelConductorServiceI {
 
     /** Siguiente parada recomendada: primera pendiente por orden. */
     SiguienteParadaDTO siguienteParada();
+    RutaConductorResponseDTO ruta();
 }

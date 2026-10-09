@@ -1,0 +1,3 @@
+-- Fixture HU-08 para pruebas que creen pedidos: las columnas son opcionales.
+-- Ejemplo: UPDATE pedidos SET latitud_destino = 4.60971, longitud_destino = -74.08175
+-- WHERE numero_pedido = 'HU08-EJEMPLO-1';

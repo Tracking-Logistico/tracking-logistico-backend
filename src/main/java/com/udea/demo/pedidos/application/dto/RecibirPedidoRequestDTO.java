@@ -10,6 +10,8 @@ public record RecibirPedidoRequestDTO(
     @NotBlank(message = "La dirección de destino es obligatoria") @Size(min = 8, max = 250) String direccionDestino,
     @NotBlank(message = "La ciudad de destino es obligatoria") @Size(max = 100) String ciudadDestino,
     @Pattern(regexp = "^(|[\\p{L}0-9 -]{3,12})$", message = "El código postal de destino no es válido") String codigoPostalDestino,
+    @DecimalMin(value = "-90.0") @DecimalMax(value = "90.0") Double latitudDestino,
+    @DecimalMin(value = "-180.0") @DecimalMax(value = "180.0") Double longitudDestino,
     @NotBlank(message = "La descripción del paquete es obligatoria") @Size(max = 255) String descripcionPaquete,
     @NotNull @Positive @Digits(integer = 8, fraction = 2) Double pesoKg,
     @NotNull @Positive @Digits(integer = 8, fraction = 2) Double largoCm,
@@ -29,7 +31,7 @@ public record RecibirPedidoRequestDTO(
             Double pesoKg, Double largoCm, Double anchoCm, Double altoCm, TipoServicio tipoServicio,
             String destinatarioNombre, String destinatarioTelefono, String remitenteTelefono) {
         this(direccionOrigen, ciudadOrigen, codigoPostalOrigen, direccionDestino, ciudadDestino, codigoPostalDestino,
-                descripcionPaquete, pesoKg, largoCm, anchoCm, altoCm, tipoServicio, destinatarioNombre,
+                null, null, descripcionPaquete, pesoKg, largoCm, anchoCm, altoCm, tipoServicio, destinatarioNombre,
                 destinatarioTelefono, null, remitenteTelefono);
     }
 }

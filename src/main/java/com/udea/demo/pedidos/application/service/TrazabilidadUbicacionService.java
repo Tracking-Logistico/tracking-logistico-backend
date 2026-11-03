@@ -35,11 +35,12 @@ public class TrazabilidadUbicacionService {
     private final ClienteRepository clientes;
     private final AccesoPedidoConductorI accesoConductor;
     private final RegistroHistorialPedido historial;
+    private final AccesoClientePedido accesoCliente;
 
     public TrazabilidadUbicacionService(PedidoRepository pedidos, EventoUbicacionPedidoRepository eventos,
                                         JdbcTemplate jdbc, ActorAuthorizationService actores,
                                         ClienteRepository clientes, AccesoPedidoConductorI accesoConductor,
-                                        RegistroHistorialPedido historial) {
+                                        RegistroHistorialPedido historial, AccesoClientePedido accesoCliente) {
         this.pedidos = pedidos;
         this.eventos = eventos;
         this.jdbc = jdbc;
@@ -47,6 +48,7 @@ public class TrazabilidadUbicacionService {
         this.clientes = clientes;
         this.accesoConductor = accesoConductor;
         this.historial = historial;
+        this.accesoCliente = accesoCliente;
     }
 
     @Transactional
@@ -124,9 +126,23 @@ public class TrazabilidadUbicacionService {
     @Transactional(readOnly = true)
     public List<UbicacionResponseDTO> consultar(Long pedidoId) {
         Pedido pedido = pedidos.findById(pedidoId).orElseThrow(() -> new PedidoNoEncontradoException(pedidoId));
-        autorizarLectura(pedido, actores.actorActual());
+        if (!esDba()) autorizarLectura(pedido, actores.actorActual());
         return eventos.findByPedidoIdOrderByFechaEventoAscIdAsc(pedidoId).stream()
                 .map(TrazabilidadUbicacionService::response).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UbicacionResponseDTO> consultarCliente(String numeroTracking) {
+        Pedido pedido = accesoCliente.pedidoDelClienteActual(numeroTracking);
+        return eventos.findByPedidoIdOrderByFechaEventoAscIdAsc(pedido.getId()).stream()
+                .map(TrazabilidadUbicacionService::response).toList();
+    }
+
+    private static boolean esDba() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_DBA"));
     }
 
     private void autorizarLectura(Pedido pedido, Usuario actor) {

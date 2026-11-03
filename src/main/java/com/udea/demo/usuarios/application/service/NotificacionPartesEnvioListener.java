@@ -35,7 +35,6 @@ public class NotificacionPartesEnvioListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void notificar(DevolucionCreadaEvent evento) {
-        enviarAlDestinatario(evento.correoDestinatario(), evento.numeroTracking(), evento.mensajeCliente());
         notificarConductor(evento.conductorUsuarioId(), evento.pedidoOrigenId(), evento.eventId().toString(),
                 "Se inició la devolución " + evento.numeroTrackingOrigen() + ". Nuevo tracking: "
                         + evento.numeroTracking() + ".");

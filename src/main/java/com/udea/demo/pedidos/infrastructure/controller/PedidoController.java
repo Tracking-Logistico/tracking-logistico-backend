@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,14 +18,21 @@ import com.udea.demo.pedidos.domain.model.EstadoPedido;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.udea.demo.pedidos.application.service.TrazabilidadUbicacionService;
 
 @RestController
 @SecurityRequirement(name = "bearerAuth")
 @RequestMapping("/api/v1/pedidos")
 public class PedidoController {
     private final PedidoServiceI pedidoService;
+    private TrazabilidadUbicacionService trazabilidad;
 
     public PedidoController(PedidoServiceI pedidoService) { this.pedidoService = pedidoService; }
+
+    @Autowired
+    public void setTrazabilidad(TrazabilidadUbicacionService trazabilidad) {
+        this.trazabilidad = trazabilidad;
+    }
 
     @PostMapping
     public ResponseEntity<PedidoResponseDTO> recibirPedido(@Valid @RequestBody RecibirPedidoRequestDTO dto) {
@@ -83,7 +91,8 @@ public class PedidoController {
 
     @GetMapping("/mios/tracking/{numeroTracking}")
     public ResponseEntity<SeguimientoClienteResponseDTO> obtenerSeguimientoMio(@PathVariable String numeroTracking) {
-        return ResponseEntity.ok(pedidoService.obtenerSeguimientoCliente(numeroTracking));
+        SeguimientoClienteResponseDTO seguimiento = pedidoService.obtenerSeguimientoCliente(numeroTracking);
+        return ResponseEntity.ok(seguimiento.conUbicaciones(trazabilidad.consultarCliente(numeroTracking)));
     }
 
     @PutMapping("/{id}/validar")

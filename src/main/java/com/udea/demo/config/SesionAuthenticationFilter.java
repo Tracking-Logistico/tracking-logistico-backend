@@ -41,8 +41,7 @@ public class SesionAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = bearer(request);
 
-        boolean adminConApiKey = request.getRequestURI().startsWith("/api/v1/admin/")
-                && SecurityContextHolder.getContext().getAuthentication() != null
+        boolean adminConApiKey = SecurityContextHolder.getContext().getAuthentication() != null
                 && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
                     .anyMatch(a -> "ROLE_DBA".equals(a.getAuthority()));
         if (token != null && !adminConApiKey) {

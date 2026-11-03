@@ -69,7 +69,7 @@ public class CrearDevolucionService {
         historial.registrar(guardado.getId(), null, "DEVOLUCION_CREADA", "TRACKING_ORIGEN",
                 original.getNumeroTracking(), ahora);
         eventos.publishEvent(DevolucionCreadaEvent.de(guardado.getId(), guardado.getNumeroTracking(),
-                original.getClienteId(), original.getId(), original.getNumeroTracking(), original.getDestinatarioEmail(),
+                original.getClienteId(), original.getId(), original.getNumeroTracking(), original.getRemitenteEmail(),
                 conductorUsuarioId, "La devolución del envío " + original.getNumeroTracking()
                         + " fue creada. Nuevo código de seguimiento: " + guardado.getNumeroTracking() + "."));
         return guardado;

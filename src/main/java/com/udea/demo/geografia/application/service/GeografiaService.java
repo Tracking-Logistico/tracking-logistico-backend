@@ -28,6 +28,7 @@ public class GeografiaService {
 
     @Transactional
     public CiudadResponseDTO crearCiudad(CiudadRequestDTO dto) {
+        exigirNombreCiudadUnico(dto.nombre(), dto.departamento(), null);
         long id = insertar("""
                 INSERT INTO ciudades_logisticas (nombre, departamento, activa) VALUES (?, ?, true)
                 """, dto.nombre().trim(), dto.departamento().trim());
@@ -36,6 +37,7 @@ public class GeografiaService {
 
     @Transactional
     public CiudadResponseDTO actualizarCiudad(long id, CiudadRequestDTO dto) {
+        exigirNombreCiudadUnico(dto.nombre(), dto.departamento(), id);
         exigirActualizacion(jdbc.update("""
                 UPDATE ciudades_logisticas SET nombre = ?, departamento = ?
                 WHERE id = ? AND activa = true
@@ -55,7 +57,7 @@ public class GeografiaService {
                 SELECT o.id, o.nombre, o.ciudad_id, c.nombre AS ciudad, c.departamento,
                        o.direccion, o.telefono, o.email, o.activa
                 FROM oficinas_logisticas o JOIN ciudades_logisticas c ON c.id = o.ciudad_id
-                WHERE (? = true OR o.activa = true)
+                WHERE (? = true OR (o.activa = true AND c.activa = true))
                 """;
         Object[] parametros;
         if (ciudadId == null) {
@@ -74,6 +76,7 @@ public class GeografiaService {
     @Transactional
     public OficinaResponseDTO crearOficina(OficinaRequestDTO dto) {
         exigirCiudadActiva(dto.ciudadId());
+        exigirOficinaUnica(dto.nombre(), dto.direccion(), dto.ciudadId(), null);
         long id = insertar("""
                 INSERT INTO oficinas_logisticas (nombre, ciudad_id, direccion, telefono, email, activa)
                 VALUES (?, ?, ?, ?, ?, true)
@@ -85,6 +88,7 @@ public class GeografiaService {
     @Transactional
     public OficinaResponseDTO actualizarOficina(long id, OficinaRequestDTO dto) {
         exigirCiudadActiva(dto.ciudadId());
+        exigirOficinaUnica(dto.nombre(), dto.direccion(), dto.ciudadId(), id);
         exigirActualizacion(jdbc.update("""
                 UPDATE oficinas_logisticas SET nombre = ?, ciudad_id = ?, direccion = ?, telefono = ?, email = ?
                 WHERE id = ? AND activa = true
@@ -107,7 +111,8 @@ public class GeografiaService {
                 FROM puntos_entrega p
                 JOIN ciudades_logisticas c ON c.id = p.ciudad_id
                 LEFT JOIN oficinas_logisticas o ON o.id = p.oficina_id
-                WHERE (? = true OR p.activo = true)
+                WHERE (? = true OR (p.activo = true AND c.activa = true
+                    AND (p.oficina_id IS NULL OR o.activa = true)))
                 """;
         var parametros = new java.util.ArrayList<Object>();
         parametros.add(incluirInactivas);
@@ -129,6 +134,7 @@ public class GeografiaService {
     @Transactional
     public PuntoEntregaResponseDTO crearPunto(PuntoEntregaRequestDTO dto) {
         validarCiudadOficina(dto.ciudadId(), dto.oficinaId());
+        exigirPuntoUnico(dto.nombre(), dto.direccion(), dto.ciudadId(), dto.oficinaId(), null);
         long id = insertar("""
                 INSERT INTO puntos_entrega (nombre, ciudad_id, oficina_id, direccion, descripcion, activo)
                 VALUES (?, ?, ?, ?, ?, true)
@@ -140,6 +146,7 @@ public class GeografiaService {
     @Transactional
     public PuntoEntregaResponseDTO actualizarPunto(long id, PuntoEntregaRequestDTO dto) {
         validarCiudadOficina(dto.ciudadId(), dto.oficinaId());
+        exigirPuntoUnico(dto.nombre(), dto.direccion(), dto.ciudadId(), dto.oficinaId(), id);
         exigirActualizacion(jdbc.update("""
                 UPDATE puntos_entrega SET nombre = ?, ciudad_id = ?, oficina_id = ?, direccion = ?, descripcion = ?
                 WHERE id = ? AND activo = true
@@ -212,6 +219,53 @@ public class GeografiaService {
                 """, Boolean.class, oficinaId, ciudadId))) {
             throw new IllegalArgumentException("La oficina no pertenece a la ciudad o está inactiva");
         }
+    }
+
+    private void exigirNombreCiudadUnico(String nombre, String departamento, Long excluirId) {
+        if (existe("""
+                SELECT EXISTS(SELECT 1 FROM ciudades_logisticas
+                WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?))
+                  AND LOWER(TRIM(departamento)) = LOWER(TRIM(?))
+                  AND (? IS NULL OR id <> ?))
+                """, nombre, departamento, excluirId, excluirId)) {
+            throw new IllegalArgumentException("Ya existe una ciudad con ese nombre y departamento");
+        }
+    }
+
+    private void exigirOficinaUnica(String nombre, String direccion, Long ciudadId, Long excluirId) {
+        if (existe("""
+                SELECT EXISTS(SELECT 1 FROM oficinas_logisticas
+                WHERE ciudad_id = ? AND LOWER(TRIM(nombre)) = LOWER(TRIM(?))
+                  AND (? IS NULL OR id <> ?))
+                """, ciudadId, nombre, excluirId, excluirId)) {
+            throw new IllegalArgumentException("Ya existe una oficina con ese nombre en la ciudad");
+        }
+        if (existe("""
+                SELECT EXISTS(SELECT 1 FROM oficinas_logisticas
+                WHERE ciudad_id = ? AND LOWER(TRIM(direccion)) = LOWER(TRIM(?))
+                  AND (? IS NULL OR id <> ?))
+                """, ciudadId, direccion, excluirId, excluirId)) {
+            throw new IllegalArgumentException("Ya existe una oficina con esa dirección en la ciudad");
+        }
+    }
+
+    private void exigirPuntoUnico(String nombre, String direccion, Long ciudadId,
+                                  Long oficinaId, Long excluirId) {
+        String scope = "ciudad_id = ? AND (oficina_id = ? OR (oficina_id IS NULL AND ? IS NULL))";
+        if (existe("SELECT EXISTS(SELECT 1 FROM puntos_entrega WHERE " + scope
+                        + " AND LOWER(TRIM(nombre)) = LOWER(TRIM(?)) AND (? IS NULL OR id <> ?))",
+                ciudadId, oficinaId, oficinaId, nombre, excluirId, excluirId)) {
+            throw new IllegalArgumentException("Ya existe un punto con ese nombre en la ubicación");
+        }
+        if (existe("SELECT EXISTS(SELECT 1 FROM puntos_entrega WHERE " + scope
+                        + " AND LOWER(TRIM(direccion)) = LOWER(TRIM(?)) AND (? IS NULL OR id <> ?))",
+                ciudadId, oficinaId, oficinaId, direccion, excluirId, excluirId)) {
+            throw new IllegalArgumentException("Ya existe un punto con esa dirección en la ubicación");
+        }
+    }
+
+    private boolean existe(String sql, Object... parametros) {
+        return Boolean.TRUE.equals(jdbc.queryForObject(sql, Boolean.class, parametros));
     }
 
     private static void exigirActualizacion(int filas, String mensaje) {

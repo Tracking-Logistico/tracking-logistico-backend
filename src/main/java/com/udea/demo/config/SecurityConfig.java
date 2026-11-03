@@ -107,6 +107,9 @@ public class SecurityConfig {
                     .hasRole("CLIENTE")
                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/pedidos/mios/tracking/*/direccion")
                     .hasRole("CLIENTE")
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/pedidos/*/pausar",
+                                 "/api/v1/pedidos/*/reanudar", "/api/v1/pedidos/*/cancelar")
+                    .hasAnyRole("CLIENTE", "OPERADOR", "CONDUCTOR")
                 .requestMatchers("/api/v1/pedidos/incidencias/tipos", "/api/v1/pedidos/*/incidencias").hasRole("OPERADOR")
                 .requestMatchers("/api/v1/pedidos/pendientes", "/api/v1/pedidos/activables",
                                  "/api/v1/pedidos/validados", "/api/v1/pedidos/transito", "/api/v1/pedidos/despachos",

@@ -15,5 +15,16 @@ public record SeguimientoClienteResponseDTO(
         String descripcionEstado,
         NovedadClienteDTO novedad,
         LocalDate fechaEntregaReprogramada,
-        LocalDateTime fechaLimiteVerificacionDireccion
-) {}
+        LocalDateTime fechaLimiteVerificacionDireccion,
+        String numeroTrackingOrigenDevolucion,
+        String referenciaDevolucion
+) {
+    public SeguimientoClienteResponseDTO(Long id, String numeroPedido, String numeroTracking, EstadoPedido estado,
+                                         LocalDateTime fechaEstimadaEntrega,
+                                         List<MovimientoSeguimientoResponseDTO> movimientos, String descripcionEstado,
+                                         NovedadClienteDTO novedad, LocalDate fechaEntregaReprogramada,
+                                         LocalDateTime fechaLimiteVerificacionDireccion) {
+        this(id, numeroPedido, numeroTracking, estado, fechaEstimadaEntrega, movimientos, descripcionEstado, novedad,
+                fechaEntregaReprogramada, fechaLimiteVerificacionDireccion, null, null);
+    }
+}
